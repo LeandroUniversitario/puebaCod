@@ -1,0 +1,3 @@
+#vamos a ignorar los class
+*.class
+target/
