@@ -63,6 +63,7 @@ public class LoginVentana extends javax.swing.JFrame {
     private void initComponents() {
 
         Bg = new javax.swing.JPanel();
+        jLabel1 = new javax.swing.JLabel();
         nombre = new javax.swing.JLabel();
         logo = new javax.swing.JLabel();
         city = new javax.swing.JLabel();
@@ -83,19 +84,24 @@ public class LoginVentana extends javax.swing.JFrame {
         Bg.setBackground(new java.awt.Color(255, 255, 255));
         Bg.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
+        jLabel1.setFont(new java.awt.Font("SansSerif", 3, 18)); // NOI18N
+        jLabel1.setForeground(new java.awt.Color(0, 0, 0));
+        jLabel1.setText("Piura");
+        Bg.add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(670, 340, -1, -1));
+
         nombre.setBackground(new java.awt.Color(255, 255, 255));
-        nombre.setFont(new java.awt.Font("Roboto", 0, 14)); // NOI18N
+        nombre.setFont(new java.awt.Font("SansSerif", 3, 18)); // NOI18N
         nombre.setForeground(new java.awt.Color(0, 0, 0));
         nombre.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        nombre.setText("Alquileres Turísticos del Norte - Piura");
-        Bg.add(nombre, new org.netbeans.lib.awtextra.AbsoluteConstraints(540, 330, 290, 90));
+        nombre.setText("Alquileres Turísticos del Norte");
+        Bg.add(nombre, new org.netbeans.lib.awtextra.AbsoluteConstraints(560, 280, 280, 90));
 
         logo.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         logo.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/logoPlaya (1).png"))); // NOI18N
         Bg.add(logo, new org.netbeans.lib.awtextra.AbsoluteConstraints(550, 10, 280, 160));
 
         city.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/fotoPlaya.png"))); // NOI18N
-        Bg.add(city, new org.netbeans.lib.awtextra.AbsoluteConstraints(544, 0, -1, 500));
+        Bg.add(city, new org.netbeans.lib.awtextra.AbsoluteConstraints(544, 0, 300, 500));
 
         LOGO.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/favicon.png"))); // NOI18N
         Bg.add(LOGO, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 30, 50, 80));
@@ -252,6 +258,7 @@ public class LoginVentana extends javax.swing.JFrame {
     private javax.swing.JButton botonIngresar;
     private javax.swing.JButton btnSalir;
     private javax.swing.JLabel city;
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jPassword;
     private javax.swing.JPasswordField jPasswordField1;
     private javax.swing.JSeparator jSeparator1;

@@ -9,6 +9,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
@@ -173,40 +175,42 @@ public class PanelAlquiler extends javax.swing.JPanel {
         try {
             int horasUsadas = (int) jSpinnerHorasUsadas.getValue();
 
-            // actualizar la duración total sumando las horas del nuevo detalle
+            // Obtener la duración actual (0 si está vacío)
             int duracionActual = txtDuracion.getText().isEmpty() ? 0 : Integer.parseInt(txtDuracion.getText());
-            int nuevaDuracion = duracionActual + horasUsadas;
+
+            // La duración debe ser la MAYOR entre las horas de los detalles
+            int nuevaDuracion = Math.max(duracionActual, horasUsadas);
             txtDuracion.setText(String.valueOf(nuevaDuracion));
 
-            // actualizar hora final según la nueva duración
+            // Actualizar hora final en base a la mayor duración
             String horaInicialTexto = txtHora.getText().trim();
             if (!horaInicialTexto.isEmpty()) {
 
-                // 🔹 Normalizamos el formato (por si viene desde SQL con ".0000000")
+                // Normalizar formato proveniente de SQL
                 if (horaInicialTexto.contains(".")) {
-                    horaInicialTexto = horaInicialTexto.substring(0, horaInicialTexto.indexOf(".")); // "12:00:00"
+                    horaInicialTexto = horaInicialTexto.substring(0, horaInicialTexto.indexOf("."));
                 }
 
-                // 🔹 Seleccionamos el formato correcto según la longitud
-                if (horaInicialTexto.matches("^\\d:\\d{2}$")) {
-                    horaInicialTexto = "0" + horaInicialTexto;
-                }
-                java.time.format.DateTimeFormatter formato = horaInicialTexto.length() > 5
+                // Ajustar patrón del formato
+                java.time.format.DateTimeFormatter formato
+                        = horaInicialTexto.length() > 5
                         ? java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
                         : java.time.format.DateTimeFormatter.ofPattern("HH:mm");
 
                 java.time.LocalTime horaInicial = java.time.LocalTime.parse(horaInicialTexto, formato);
                 java.time.LocalTime horaFinal = horaInicial.plusHours(nuevaDuracion);
 
-                // 🔹 Mostramos en formato limpio HH:mm
-                txtHoraFin.setText(horaFinal.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+                // Mostrar en HH:mm
+                txtHoraFin.setText(
+                        horaFinal.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                );
             }
 
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error al actualizar duración: " + e.getMessage());
         }
-
     }
+
     
     private void habilitarCampos(boolean habilitar) {
         btnAgregarRe.setEnabled(habilitar);
@@ -617,7 +621,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
     private void buscarTuristaPorDni(String dniBuscado) {
         if (dniBuscado.isEmpty()) {
             javax.swing.JOptionPane.showMessageDialog(this, "Debe ingresar un DNI para buscar.");
-            return;
+            return; 
         }
 
         String sql = "SELECT * FROM Turista WHERE dni = ?";
@@ -663,69 +667,87 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
  
     private void btnAgregarReActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAgregarReActionPerformed
-        try {
-            // 1️⃣ Obtener el recurso seleccionado
-            Recurso r = (Recurso) jComboBoxRecursos.getSelectedItem();
-            if (r == null) {
-                JOptionPane.showMessageDialog(this, "Debe seleccionar un recurso.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
+        if (!txtHora.getText().isEmpty()) {
 
-            // 2️⃣ Validar horas
-            int horasUsadas = (int) jSpinnerHorasUsadas.getValue();
-            if (horasUsadas <= 0) {
-                JOptionPane.showMessageDialog(this, "Debe ingresar un número de horas mayor a 0.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            // 3️⃣ Validar stock disponible (solo 1 unidad por alquiler)
-            String sqlCheck = "SELECT cantidad FROM Recursos WHERE idRecursos = ?";
-            try (PreparedStatement ps = conexion.prepareStatement(sqlCheck)) {
-                ps.setString(1, r.getId());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt("cantidad") <= 0) {
-                    JOptionPane.showMessageDialog(this,
-                            "⚠️ No hay unidades disponibles para este recurso.",
-                            "Stock insuficiente", JOptionPane.WARNING_MESSAGE);
+            try {
+                // 1️⃣ Obtener el recurso seleccionado
+                Recurso r = (Recurso) jComboBoxRecursos.getSelectedItem();
+                if (r == null) {
+                    JOptionPane.showMessageDialog(this, "Debe seleccionar un recurso.", "Advertencia", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
+
+                // 🔍 1.5️⃣ VALIDAR si el recurso YA existe en la tabla
+                DefaultTableModel modeloCheck = (DefaultTableModel) tblDetalles.getModel();
+                for (int i = 0; i < modeloCheck.getRowCount(); i++) {
+                    String idTabla = modeloCheck.getValueAt(i, 1).toString(); // columna 1 = idRecurso
+                    if (idTabla.equals(r.getId())) {
+                        JOptionPane.showMessageDialog(this,
+                                "⚠️ Este recurso ya fue agregado al alquiler.\nSolo se permite una unidad por alquiler.",
+                                "Recurso duplicado",
+                                JOptionPane.WARNING_MESSAGE);
+                        return; // 🔥 NO AGREGAR
+                    }
+                }
+
+                // 2️⃣ Validar horas
+                int horasUsadas = (int) jSpinnerHorasUsadas.getValue();
+                if (horasUsadas <= 0) {
+                    JOptionPane.showMessageDialog(this, "Debe ingresar un número de horas mayor a 0.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                // 3️⃣ Validar stock disponible
+                String sqlCheck = "SELECT cantidad FROM Recursos WHERE idRecursos = ?";
+                try (PreparedStatement ps = conexion.prepareStatement(sqlCheck)) {
+                    ps.setString(1, r.getId());
+                    ResultSet rs = ps.executeQuery();
+                    if (rs.next() && rs.getInt("cantidad") <= 0) {
+                        JOptionPane.showMessageDialog(this,
+                                "⚠️ No hay unidades disponibles para este recurso.",
+                                "Stock insuficiente", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                }
+
+                // 4️⃣ Calcular subtotal
+                double precioHora = r.getTarifaHora();
+                double subtotal = precioHora * horasUsadas;
+                txtSub.setText(String.format("%.2f", subtotal));
+
+                // 5️⃣ Agregar fila a la tabla
+                DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
+                modelo.addRow(new Object[]{
+                    "", // idDetalle
+                    r.getId(),
+                    r.getTipo(),
+                    precioHora,
+                    horasUsadas,
+                    subtotal
+                });
+
+                // 6️⃣ Actualizar cálculos del alquiler
+                calcularDuracion();
+                calcularTotal();
+                aplicarPromocionAutomatica();
+
+                // 7️⃣ Reset campos
+                jComboBoxRecursos.setSelectedIndex(-1);
+                txtPrecioHora.setText("");
+                jSpinnerHorasUsadas.setValue(0);
+                txtSub.setText("");
+
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error al agregar detalle:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
 
-            // 4️⃣ Calcular subtotal
-            double precioHora = r.getTarifaHora();
-            double subtotal = precioHora * horasUsadas;
-            txtSub.setText(String.format("%.2f", subtotal));
-
-            // 5️⃣ Agregar fila a la tabla
-            DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
-            modelo.addRow(new Object[]{
-                "", // idDetalle (se genera al grabar)
-                r.getId(), // id Recurso
-                r.getTipo(), // nombre del recurso
-                precioHora, // precio por hora
-                horasUsadas, // horas usadas
-                subtotal // subtotal
-            });
-
-            // 6️⃣ Actualizar cálculos del alquiler
-            calcularDuracion();
-            calcularTotal();
-            aplicarPromocionAutomatica();
-
-            // 7️⃣ Reset del panel de recurso
-            jComboBoxRecursos.setSelectedIndex(-1);
-            txtPrecioHora.setText("");
-            jSpinnerHorasUsadas.setValue(0);
-            txtSub.setText("");
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al agregar detalle:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(null, "Ingrese la hora de inicio");
         }
-
-
     }//GEN-LAST:event_btnAgregarReActionPerformed
 
     private void btnEliminarReActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarReActionPerformed
+
         int filaSeleccionada = tblDetalles.getSelectedRow();
 
         if (filaSeleccionada == -1) {
@@ -746,40 +768,41 @@ public class PanelAlquiler extends javax.swing.JPanel {
         }
 
         try {
-            javax.swing.table.DefaultTableModel modelo = (javax.swing.table.DefaultTableModel) tblDetalles.getModel();
-
-            // 🔹 Obtener las horas del detalle eliminado para ajustar la duración total
-            int horasEliminadas = Integer.parseInt(modelo.getValueAt(filaSeleccionada, 4).toString());
+            DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
 
             // 🔹 Eliminar la fila seleccionada
             modelo.removeRow(filaSeleccionada);
 
-            // 🔹 Actualizar duración total
-            int duracionActual = txtDuracion.getText().isEmpty() ? 0 : Integer.parseInt(txtDuracion.getText());
-            int nuevaDuracion = Math.max(0, duracionActual - horasEliminadas);
+            // 🔹 Recalcular la duración como el valor MÁXIMO de horas en la tabla
+            int nuevaDuracion = 0;
+            for (int i = 0; i < modelo.getRowCount(); i++) {
+                int horas = Integer.parseInt(modelo.getValueAt(i, 4).toString());
+                nuevaDuracion = Math.max(nuevaDuracion, horas);
+            }
+
             txtDuracion.setText(String.valueOf(nuevaDuracion));
 
             // 🔹 Recalcular total
             calcularTotal();
 
-            // 🔹 Recalcular hora final (en base a nueva duración)
+            // 🔹 Recalcular hora final basado en la nueva duración máxima
             String horaInicialTexto = txtHora.getText().trim();
             if (!horaInicialTexto.isEmpty()) {
-                // 🔹 Si viene con milisegundos tipo "14:00:00.0000000" => limpiar
+
                 if (horaInicialTexto.contains(".")) {
                     horaInicialTexto = horaInicialTexto.substring(0, horaInicialTexto.indexOf("."));
                 }
 
-                // 🔹 Detectar formato según longitud
-                java.time.format.DateTimeFormatter formato = horaInicialTexto.length() > 5
-                        ? java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
-                        : java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+                DateTimeFormatter formato = horaInicialTexto.length() > 5
+                        ? DateTimeFormatter.ofPattern("HH:mm:ss")
+                        : DateTimeFormatter.ofPattern("HH:mm");
 
-                java.time.LocalTime horaInicial = java.time.LocalTime.parse(horaInicialTexto, formato);
-                java.time.LocalTime horaFinal = horaInicial.plusHours(nuevaDuracion);
+                LocalTime horaInicial = LocalTime.parse(horaInicialTexto, formato);
+                LocalTime horaFinal = horaInicial.plusHours(nuevaDuracion);
 
-                // 🔹 Mostrar limpio HH:mm
-                txtHoraFin.setText(horaFinal.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+                txtHoraFin.setText(
+                        horaFinal.format(DateTimeFormatter.ofPattern("HH:mm"))
+                );
             } else {
                 txtHoraFin.setText("");
             }
@@ -788,8 +811,13 @@ public class PanelAlquiler extends javax.swing.JPanel {
             aplicarPromocionAutomatica();
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al eliminar detalle: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this,
+                    "Error al eliminar detalle: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
+
+
     }//GEN-LAST:event_btnEliminarReActionPerformed
 
     private void buscarAlquilerPorId(String idBuscar) {

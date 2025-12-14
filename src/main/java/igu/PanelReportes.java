@@ -28,7 +28,7 @@ public class PanelReportes extends javax.swing.JPanel {
         add(btnBoleta, new org.netbeans.lib.awtextra.AbsoluteConstraints(150, 370, 340, 40));
 
     }
-    
+
     // ======================================================
 // BOLETA DE PAGO INDIVIDUAL
 // ======================================================
@@ -43,11 +43,11 @@ public class PanelReportes extends javax.swing.JPanel {
         String ruta = crearRuta("boleta_pago_" + idPago + ".pdf");
 
         try {
-            // 🔹 1️⃣ Obtener datos completos del pago + alquiler + turista
+            // 1️⃣ Obtener datos del pago, alquiler y cliente
             String sql = """
-            SELECT p.idPago, p.fechaPago, p.monto AS montoSinIgv, p.igv, p.montoConIGV, 
-                   p.metodoPago, p.estado, 
-                   a.idAlquiler, t.idTurista, t.nombre, t.apellidos, t.dni
+            SELECT p.idPago, p.fechaPago, p.monto AS montoSinIgv, p.igv, p.montoConIGV,
+                   p.metodoPago, p.estado,
+                   a.idAlquiler, t.nombre, t.apellidos, t.dni
             FROM Pago p
             JOIN Alquiler a ON p.idAlquiler = a.idAlquiler
             JOIN Turista t ON a.idTurista = t.idTurista
@@ -63,84 +63,86 @@ public class PanelReportes extends javax.swing.JPanel {
                 return;
             }
 
-            // 🔹 2️⃣ Obtener los valores reales
+            // 2️⃣ Extraer datos necesarios
             double montoSinIgv = rs.getDouble("montoSinIgv");
-            double igvPorcentaje = rs.getDouble("igv"); // 0.18
+            double igvPorcentaje = rs.getDouble("igv");
             double montoConIgv = rs.getDouble("montoConIGV");
 
-            // Calcular IGV en soles desde el porcentaje
-            double igvSoles = montoSinIgv * igvPorcentaje;
+            double igvSoles = Math.round(montoSinIgv * igvPorcentaje * 100.0) / 100.0;
 
-            // Redondear a 2 decimales
             montoSinIgv = Math.round(montoSinIgv * 100.0) / 100.0;
-            igvSoles = Math.round(igvSoles * 100.0) / 100.0;
             montoConIgv = Math.round(montoConIgv * 100.0) / 100.0;
 
-            // 🔹 3️⃣ Crear el documento PDF
+            // 3️⃣ Crear documento PDF
             Document doc = new Document(PageSize.A5);
             PdfWriter.getInstance(doc, new FileOutputStream(ruta));
             doc.open();
 
-            // Encabezado tipo boleta
+            // Encabezado
             Paragraph titulo = new Paragraph("BOLETA DE PAGO", new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD));
             titulo.setAlignment(Element.ALIGN_CENTER);
             doc.add(titulo);
+
             doc.add(new Paragraph(" "));
             doc.add(new Paragraph("Alquileres Turísticos del Norte - Piura"));
             doc.add(new Paragraph("RUC: 20457896543"));
             doc.add(new Paragraph("Dirección: Av. Grau 1234, Piura"));
             doc.add(new Paragraph("Teléfono: (073) 451234"));
             doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("------------------------------------------------------------------"));
+            doc.add(new Paragraph("--------------------------------------------------------------"));
             doc.add(new Paragraph(" "));
 
-            // 🔹 4️⃣ Datos del cliente
-            PdfPTable tablaCliente = new PdfPTable(2);
-            tablaCliente.setWidthPercentage(100);
-            tablaCliente.addCell("Cliente:");
-            tablaCliente.addCell(rs.getString("nombre") + " " + rs.getString("apellidos"));
-            tablaCliente.addCell("DNI:");
-            tablaCliente.addCell(rs.getString("dni"));
-            tablaCliente.addCell("ID Turista:");
-            tablaCliente.addCell(rs.getString("idTurista"));
-            tablaCliente.addCell("ID Alquiler:");
-            tablaCliente.addCell(rs.getString("idAlquiler"));
-            tablaCliente.addCell("ID Pago:");
-            tablaCliente.addCell(rs.getString("idPago"));
-            tablaCliente.addCell("Fecha de Pago:");
-            tablaCliente.addCell(rs.getDate("fechaPago").toString());
-            tablaCliente.addCell("Método de Pago:");
-            tablaCliente.addCell(rs.getString("metodoPago"));
-            tablaCliente.addCell("Estado:");
-            tablaCliente.addCell(rs.getString("estado"));
-            doc.add(tablaCliente);
-
+            // 4️⃣ Datos del Cliente (SIN ID TURISTA)
+            doc.add(new Paragraph("CLIENTE:", new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
+            doc.add(new Paragraph("Nombre: " + rs.getString("nombre") + " " + rs.getString("apellidos")));
+            doc.add(new Paragraph("DNI: " + rs.getString("dni")));
+            doc.add(new Paragraph("ID Alquiler: " + rs.getString("idAlquiler")));
+            doc.add(new Paragraph("ID Pago: " + rs.getString("idPago")));
+            doc.add(new Paragraph("Fecha de Pago: " + rs.getDate("fechaPago")));
+            doc.add(new Paragraph("Método de Pago: " + rs.getString("metodoPago")));
+            doc.add(new Paragraph("Estado: " + rs.getString("estado")));
             doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("------------------------------------------------------------------"));
+            doc.add(new Paragraph("--------------------------------------------------------------"));
             doc.add(new Paragraph(" "));
 
-            // 🔹 5️⃣ Totales (sin IGV, IGV, total)
-            PdfPTable tablaTotales = new PdfPTable(2);
-            tablaTotales.setWidthPercentage(70);
-            tablaTotales.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            // 5️⃣ DETALLES DEL ALQUILER
+            doc.add(new Paragraph("DETALLE DEL ALQUILER", new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
+            doc.add(new Paragraph(" "));
 
-            tablaTotales.addCell("Monto sin IGV (S/):");
-            tablaTotales.addCell(String.format("%.2f", montoSinIgv));
+// Consulta CORREGIDA (usa tarifaHora de Recursos)
+            String sqlDetalles = """
+    SELECT r.tipo, r.tarifaHora AS precioHora, d.horasUsadas, d.subTotal
+    FROM DetalleAlquiler d
+    JOIN Recursos r ON d.idRecurso = r.idRecursos
+    WHERE d.idAlquiler = ?
+""";
 
-            tablaTotales.addCell("IGV (18%):");
-            tablaTotales.addCell(String.format("%.2f", igvSoles));
+            PreparedStatement psDet = conexion.prepareStatement(sqlDetalles);
+            psDet.setString(1, rs.getString("idAlquiler"));
+            ResultSet rsDet = psDet.executeQuery();
 
-            tablaTotales.addCell("Total con IGV (S/):");
-            PdfPCell totalCell = new PdfPCell(new Phrase(String.format("%.2f", montoConIgv)));
-            totalCell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            tablaTotales.addCell(totalCell);
+            while (rsDet.next()) {
+                doc.add(new Paragraph("Recurso: " + rsDet.getString("tipo")));
+                doc.add(new Paragraph("  Precio/Hora: S/ " + rsDet.getDouble("precioHora")));
+                doc.add(new Paragraph("  Horas usadas: " + rsDet.getInt("horasUsadas")));
+                doc.add(new Paragraph("  Subtotal: S/ " + String.format("%.2f", rsDet.getDouble("subTotal"))));
+                doc.add(new Paragraph(" "));
+            }
 
-            doc.add(tablaTotales);
+            doc.add(new Paragraph("--------------------------------------------------------------"));
+            doc.add(new Paragraph(" "));
+            // 6️⃣ Totales
+            doc.add(new Paragraph("RESUMEN DE PAGO", new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
+            doc.add(new Paragraph("Monto sin IGV: S/ " + String.format("%.2f", montoSinIgv)));
+            doc.add(new Paragraph("IGV (18%): S/ " + String.format("%.2f", igvSoles)));
+            doc.add(new Paragraph("TOTAL A PAGAR: S/ " + String.format("%.2f", montoConIgv),
+                    new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
 
             doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("¡Gracias por su preferencia!", new Font(Font.FontFamily.HELVETICA, 12, Font.ITALIC)));
+            doc.add(new Paragraph("¡Gracias por su preferencia!",
+                    new Font(Font.FontFamily.HELVETICA, 12, Font.ITALIC)));
+
             doc.close();
-
             abrirPDF(ruta);
 
         } catch (Exception e) {

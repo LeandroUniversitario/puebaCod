@@ -14,7 +14,7 @@ public class Cconexion {
 
     Connection conexion = null;
 
-    String contraseña = "rutt";
+    String contraseña = "root";
     String usuario = "usersql";
     String ip = "localhost";
     String bd = "AlquilerVehiculos";

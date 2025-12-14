@@ -76,8 +76,8 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         jButton1.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
         jButton1.setText("💰 PAGOS");
 
-        btnConsultas.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        btnConsultas.setText("🔍 CONSULTAS");
+        //btnConsultas.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
+        //btnConsultas.setText("🔍 CONSULTAS");
 
         btnReporte.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
         btnReporte.setText("📊 REPORTES");
@@ -89,7 +89,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         aplicarEfectoHover(btnMantenimiento);
         aplicarEfectoHover(btnAlquileres);
         aplicarEfectoHover(jButton1);
-        aplicarEfectoHover(btnConsultas);
+       // aplicarEfectoHover(btnConsultas);
         aplicarEfectoHover(btnReporte);
 
     }
@@ -138,8 +138,6 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         jButton1 = new javax.swing.JButton();
         jSeparator6 = new javax.swing.JSeparator();
         jSeparator7 = new javax.swing.JSeparator();
-        btnConsultas = new javax.swing.JButton();
-        jSeparator1 = new javax.swing.JSeparator();
         PanelOriginal = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -241,14 +239,6 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         jPanel1.add(jSeparator6, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 269, 158, 10));
         jPanel1.add(jSeparator7, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 208, 158, 10));
 
-        btnConsultas.setForeground(new java.awt.Color(0, 0, 0));
-        btnConsultas.setText("CONSULTAS");
-        btnConsultas.setBorder(null);
-        btnConsultas.setContentAreaFilled(false);
-        btnConsultas.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        jPanel1.add(btnConsultas, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 285, 158, 40));
-        jPanel1.add(jSeparator1, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 331, 158, 10));
-
         PaneldeInicio.add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 170, 500));
 
         PanelOriginal.setBackground(new java.awt.Color(255, 255, 255));
@@ -347,13 +337,11 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     private javax.swing.JPanel PaneldeInicio;
     private javax.swing.JButton btnAlquileres;
     private javax.swing.JButton btnCerrarSesion;
-    private javax.swing.JButton btnConsultas;
     private javax.swing.JButton btnInicio;
     private javax.swing.JButton btnMantenimiento;
     private javax.swing.JButton btnReporte;
     private javax.swing.JButton jButton1;
     private javax.swing.JPanel jPanel1;
-    private javax.swing.JSeparator jSeparator1;
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JSeparator jSeparator3;
     private javax.swing.JSeparator jSeparator4;
