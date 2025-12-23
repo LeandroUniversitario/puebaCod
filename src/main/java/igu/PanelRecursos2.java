@@ -4,6 +4,7 @@
  */
 package igu;
 
+import java.math.BigDecimal;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -19,6 +20,8 @@ public class PanelRecursos2 extends javax.swing.JPanel {
     private Connection conexion;
     private String nivel;
     private String modo;
+    private boolean cargando = true;
+
     /**
      * Creates new form PanelRecursos2
      */
@@ -26,8 +29,17 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         initComponents();
         this.conexion = conexion;
         this.nivel = nivel;
+
+        cargando = true;
+
+        cargarTiposRecursos();
+        cargarEstados();
+
+        limpiarCampos();
         habilitarCampos(false);
-        // 🔹 Corrige desplazamiento visual por márgenes del GroupLayout:
+
+        cargando = false;
+
         bg.setBorder(null);
         bg.setBounds(0, 0, 640, 500);
         setBounds(0, 0, 640, 500);
@@ -36,24 +48,52 @@ public class PanelRecursos2 extends javax.swing.JPanel {
 
     }
 
+    private void cargarTiposRecursos() {
+        jComboBoxTipo.removeAllItems();
+        jComboBoxTipo.addItem("➕ Nuevo tipo...");
+
+        String sql = "SELECT DISTINCT tipo FROM Recursos ORDER BY tipo";
+
+        try (PreparedStatement ps = conexion.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                jComboBoxTipo.addItem(rs.getString("tipo"));
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error al cargar tipos: " + e.getMessage());
+        }
+
+    }
+    private void cargarEstados() {
+        jComboBoxEstado.removeAllItems();
+        jComboBoxEstado.addItem("Disponible");
+        jComboBoxEstado.addItem("Ocupado");
+        jComboBoxEstado.addItem("Mantenimiento");
+    }
+
+
     private void limpiarCampos() {
         txtId.setText("");
-        txtTipo.setText("");
         txtAreaDescrip.setText("");
         txtTarifa.setText("");
-        txtEstado.setText("");
         txtUbi.setText("");
-        txtCant.setText("");
+
+        cargando = true;
+        jComboBoxTipo.setSelectedIndex(0); // Primer item seguro
+        jComboBoxEstado.setSelectedIndex(0);
+        cargando = false;
     }
 
     private void habilitarCampos(boolean habilitar) {
-        txtId.setEnabled(habilitar);
-        txtTipo.setEnabled(habilitar);
+        txtId.setEnabled(false); // SIEMPRE false (ID automático)
+        jComboBoxTipo.setEnabled(habilitar);
         txtAreaDescrip.setEnabled(habilitar);
         txtTarifa.setEnabled(habilitar);
-        txtEstado.setEnabled(habilitar);
+        jComboBoxEstado.setEnabled(habilitar);
         txtUbi.setEnabled(habilitar);
-        txtCant.setEnabled(habilitar);
+
     }
 
     private void buscarRecurso(String idBuscar) {
@@ -69,22 +109,20 @@ public class PanelRecursos2 extends javax.swing.JPanel {
 
             if (rs.next()) {
                 txtId.setText(rs.getString("idRecursos"));
-                txtTipo.setText(rs.getString("tipo"));
+                jComboBoxTipo.setSelectedItem(rs.getString("tipo"));
                 txtAreaDescrip.setText(rs.getString("descripcion"));
                 txtTarifa.setText(rs.getString("tarifaHora"));
-                txtEstado.setText(rs.getString("estado"));
+                jComboBoxEstado.setSelectedItem(rs.getString("estado"));
                 txtUbi.setText(rs.getString("ubicacion"));
-                txtCant.setText(rs.getString("cantidad"));
-                habilitarCampos(false);
-               
 
-                JOptionPane.showMessageDialog(this, "Recurso encontrado. Ahora puede editarlo.");
+                habilitarCampos(false);
+                JOptionPane.showMessageDialog(this, "Recurso encontrado.");
             } else {
-                JOptionPane.showMessageDialog(this, "No se encontró un recurso con ese ID.", "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No se encontró el recurso.");
             }
 
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al buscar recurso: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al buscar recurso: " + e.getMessage());
         }
     }
 
@@ -105,14 +143,10 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         lblTarifa = new javax.swing.JLabel();
         lblEstado = new javax.swing.JLabel();
         lblUbi = new javax.swing.JLabel();
-        lblCant = new javax.swing.JLabel();
-        txtTipo = new javax.swing.JTextField();
         jScrollPane1 = new javax.swing.JScrollPane();
         txtAreaDescrip = new javax.swing.JTextArea();
         txtTarifa = new javax.swing.JTextField();
-        txtEstado = new javax.swing.JTextField();
         txtUbi = new javax.swing.JTextField();
-        txtCant = new javax.swing.JTextField();
         btnNuevo = new javax.swing.JButton();
         btnBuscar = new javax.swing.JButton();
         btnEditar = new javax.swing.JButton();
@@ -121,6 +155,8 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         btnVer = new javax.swing.JButton();
         lblId = new javax.swing.JLabel();
         txtId = new javax.swing.JTextField();
+        jComboBoxTipo = new javax.swing.JComboBox<>();
+        jComboBoxEstado = new javax.swing.JComboBox<>();
 
         setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
@@ -134,15 +170,15 @@ public class PanelRecursos2 extends javax.swing.JPanel {
 
         lblTipo.setForeground(new java.awt.Color(0, 0, 0));
         lblTipo.setText("Tipo");
-        bg.add(lblTipo, new org.netbeans.lib.awtextra.AbsoluteConstraints(25, 76, 93, -1));
+        bg.add(lblTipo, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 90, 93, -1));
 
         lblDescrip.setForeground(new java.awt.Color(0, 0, 0));
         lblDescrip.setText("Descripcion");
-        bg.add(lblDescrip, new org.netbeans.lib.awtextra.AbsoluteConstraints(25, 114, 93, -1));
+        bg.add(lblDescrip, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 130, 93, -1));
 
         lblTarifa.setForeground(new java.awt.Color(0, 0, 0));
         lblTarifa.setText("Tarifa hora");
-        bg.add(lblTarifa, new org.netbeans.lib.awtextra.AbsoluteConstraints(25, 177, 93, -1));
+        bg.add(lblTarifa, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 180, 93, -1));
 
         lblEstado.setForeground(new java.awt.Color(0, 0, 0));
         lblEstado.setText("Estado");
@@ -152,26 +188,19 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         lblUbi.setText("Ubicacion");
         bg.add(lblUbi, new org.netbeans.lib.awtextra.AbsoluteConstraints(25, 273, 93, -1));
 
-        lblCant.setForeground(new java.awt.Color(0, 0, 0));
-        lblCant.setText("cantidad");
-        bg.add(lblCant, new org.netbeans.lib.awtextra.AbsoluteConstraints(25, 315, 93, -1));
-        bg.add(txtTipo, new org.netbeans.lib.awtextra.AbsoluteConstraints(124, 72, 387, -1));
-
         txtAreaDescrip.setColumns(20);
         txtAreaDescrip.setRows(5);
         jScrollPane1.setViewportView(txtAreaDescrip);
 
-        bg.add(jScrollPane1, new org.netbeans.lib.awtextra.AbsoluteConstraints(124, 114, 387, 41));
+        bg.add(jScrollPane1, new org.netbeans.lib.awtextra.AbsoluteConstraints(120, 120, 387, 41));
 
         txtTarifa.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 txtTarifaActionPerformed(evt);
             }
         });
-        bg.add(txtTarifa, new org.netbeans.lib.awtextra.AbsoluteConstraints(124, 177, 387, -1));
-        bg.add(txtEstado, new org.netbeans.lib.awtextra.AbsoluteConstraints(124, 223, 387, -1));
-        bg.add(txtUbi, new org.netbeans.lib.awtextra.AbsoluteConstraints(124, 269, 387, -1));
-        bg.add(txtCant, new org.netbeans.lib.awtextra.AbsoluteConstraints(124, 315, 387, -1));
+        bg.add(txtTarifa, new org.netbeans.lib.awtextra.AbsoluteConstraints(120, 180, 387, -1));
+        bg.add(txtUbi, new org.netbeans.lib.awtextra.AbsoluteConstraints(120, 270, 387, -1));
 
         btnNuevo.setText("Nuevo");
         btnNuevo.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
@@ -200,6 +229,7 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         });
         bg.add(btnEditar, new org.netbeans.lib.awtextra.AbsoluteConstraints(220, 370, 90, -1));
 
+        btnEliminar.setBackground(new java.awt.Color(255, 51, 51));
         btnEliminar.setText("Eliminar");
         btnEliminar.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btnEliminar.addActionListener(new java.awt.event.ActionListener() {
@@ -209,6 +239,7 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         });
         bg.add(btnEliminar, new org.netbeans.lib.awtextra.AbsoluteConstraints(330, 370, 100, -1));
 
+        btnGrabar.setBackground(new java.awt.Color(0, 255, 0));
         btnGrabar.setText("Grabar");
         btnGrabar.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btnGrabar.addActionListener(new java.awt.event.ActionListener() {
@@ -230,7 +261,23 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         lblId.setForeground(new java.awt.Color(0, 0, 0));
         lblId.setText("Id");
         bg.add(lblId, new org.netbeans.lib.awtextra.AbsoluteConstraints(25, 42, -1, -1));
-        bg.add(txtId, new org.netbeans.lib.awtextra.AbsoluteConstraints(124, 38, 387, -1));
+        bg.add(txtId, new org.netbeans.lib.awtextra.AbsoluteConstraints(120, 40, 387, -1));
+
+        jComboBoxTipo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        jComboBoxTipo.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jComboBoxTipoActionPerformed(evt);
+            }
+        });
+        bg.add(jComboBoxTipo, new org.netbeans.lib.awtextra.AbsoluteConstraints(120, 80, 210, 30));
+
+        jComboBoxEstado.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        jComboBoxEstado.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jComboBoxEstadoActionPerformed(evt);
+            }
+        });
+        bg.add(jComboBoxEstado, new org.netbeans.lib.awtextra.AbsoluteConstraints(120, 230, 220, -1));
 
         add(bg, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
     }// </editor-fold>//GEN-END:initComponents
@@ -240,14 +287,14 @@ public class PanelRecursos2 extends javax.swing.JPanel {
     }//GEN-LAST:event_txtTarifaActionPerformed
 
     private void btnNuevoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNuevoActionPerformed
-      if(nivel.equalsIgnoreCase("administrador")){
-          txtId.setEnabled(false);
-       limpiarCampos();
-       modo="nuevo";
-        habilitarCampos(true);
-      }else{
-          JOptionPane.showMessageDialog(null, "opcion solo para administradores");
-      }
+        if (nivel.equalsIgnoreCase("administrador")) {
+            txtId.setEnabled(false);
+            limpiarCampos();
+            modo = "nuevo";
+            habilitarCampos(true);
+        } else {
+            JOptionPane.showMessageDialog(null, "opcion solo para administradores");
+        }
     }//GEN-LAST:event_btnNuevoActionPerformed
 
     private void btnBuscarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarActionPerformed
@@ -260,12 +307,12 @@ public class PanelRecursos2 extends javax.swing.JPanel {
     private void btnEditarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarActionPerformed
         if (nivel.equalsIgnoreCase("administrador")) {
             habilitarCampos(true);
-           txtId.setEnabled(false);
-        modo = "edicion";
-        }else{
+            txtId.setEnabled(false);
+            modo = "edicion";
+        } else {
             JOptionPane.showMessageDialog(null, "opcion solo para administradores");
         }
-        
+
     }//GEN-LAST:event_btnEditarActionPerformed
 
     private void btnEliminarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarActionPerformed
@@ -314,6 +361,7 @@ public class PanelRecursos2 extends javax.swing.JPanel {
                     limpiarCampos();
                     habilitarCampos(false);
                     modo = null;
+                    cargarTiposRecursos();
                 } else {
                     JOptionPane.showMessageDialog(this, "No se pudo eliminar el recurso.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
@@ -327,48 +375,58 @@ public class PanelRecursos2 extends javax.swing.JPanel {
     }//GEN-LAST:event_btnEliminarActionPerformed
 
     private void btnGrabarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGrabarActionPerformed
+        
         if (modo == null) {
             JOptionPane.showMessageDialog(this, "Seleccione primero si es un registro nuevo o edición.", "Advertencia", JOptionPane.WARNING_MESSAGE);
             return;
         }
+        String tipoSeleccionado = jComboBoxTipo.getSelectedItem().toString();
+
+        if (tipoSeleccionado.equals("➕ Nuevo tipo...")) {
+            JOptionPane.showMessageDialog(this,
+                    "Debe ingresar un tipo de vehículo válido.",
+                    "Validación",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
         // --- Validaciones ---
-        if (txtTipo.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar el tipo del recurso.", "Error", JOptionPane.ERROR_MESSAGE);
+        if (jComboBoxTipo.getSelectedIndex() == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione un tipo.");
             return;
         }
+
         if (txtTarifa.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar la tarifa por hora.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Ingrese tarifa.");
             return;
         }
-        if (txtCant.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar la cantidad.", "Error", JOptionPane.ERROR_MESSAGE);
+
+        if (jComboBoxEstado.getSelectedIndex() == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione estado.");
             return;
         }
+
 
         try {
             double tarifa = Double.parseDouble(txtTarifa.getText().trim());
-            int cantidad = Integer.parseInt(txtCant.getText().trim());
+            
 
             if (tarifa <= 0) {
                 JOptionPane.showMessageDialog(this, "La tarifa debe ser mayor que 0.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            if (cantidad <= 0) {
-                JOptionPane.showMessageDialog(this, "La cantidad debe ser mayor que 0.", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
+            
 
             if (modo.equals("nuevo")) {
                 // Procedimiento almacenado para registrar
-                CallableStatement cs = conexion.prepareCall("{call registrarRecurso(?, ?, ?, ?, ?, ?)}");
-                cs.setString(1, txtTipo.getText().trim());
+                CallableStatement cs = conexion.prepareCall("{call registrarRecurso(?, ?, ?, ?, ?)}");
+                cs.setString(1, jComboBoxTipo.getSelectedItem().toString());
                 cs.setString(2, txtAreaDescrip.getText().trim());
-                cs.setBigDecimal(3, new java.math.BigDecimal(tarifa));
-                cs.setString(4, txtEstado.getText().trim().isEmpty() ? "Disponible" : txtEstado.getText().trim());
+                cs.setBigDecimal(3, new BigDecimal(txtTarifa.getText().trim()));
+                cs.setString(4, jComboBoxEstado.getSelectedItem().toString());
                 cs.setString(5, txtUbi.getText().trim());
-                cs.setInt(6, cantidad);
                 cs.execute();
+
 
                 JOptionPane.showMessageDialog(this, "Recurso registrado correctamente.");
                 limpiarCampos();
@@ -376,15 +434,21 @@ public class PanelRecursos2 extends javax.swing.JPanel {
 
             } else if (modo.equals("edicion")) {
                 // Aquí puedes hacer un UPDATE
-                String sql = "UPDATE Recursos SET tipo=?, descripcion=?, tarifaHora=?, estado=?, ubicacion=?, cantidad=? WHERE idRecursos=?";
+                String sql = """
+                    UPDATE Recursos 
+                    SET tipo=?, descripcion=?, tarifaHora=?, estado=?, ubicacion=?
+                    WHERE idRecursos=?
+                    """;
+
                 PreparedStatement ps = conexion.prepareStatement(sql);
-                ps.setString(1, txtTipo.getText().trim());
+                ps.setString(1, jComboBoxTipo.getSelectedItem().toString());
                 ps.setString(2, txtAreaDescrip.getText().trim());
-                ps.setBigDecimal(3, new java.math.BigDecimal(tarifa));
-                ps.setString(4, txtEstado.getText().trim());
+                ps.setBigDecimal(3, new java.math.BigDecimal(txtTarifa.getText().trim()));
+                ps.setString(4, jComboBoxEstado.getSelectedItem().toString());
                 ps.setString(5, txtUbi.getText().trim());
-                ps.setInt(6, cantidad);
-                ps.setString(7, txtId.getText().trim()); // suponiendo que tienes txtBuscar para ID
+                ps.setString(6, txtId.getText().trim());
+                
+
                 int filas = ps.executeUpdate();
 
                 if (filas > 0) {
@@ -398,7 +462,7 @@ public class PanelRecursos2 extends javax.swing.JPanel {
             }
 
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Error: asegúrese de ingresar valores numéricos válidos en tarifa y cantidad.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error: asegúrese de ingresar valores numéricos válidos en tarifa", "Error", JOptionPane.ERROR_MESSAGE);
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Error al guardar recurso: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -410,6 +474,105 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         v.setLocationRelativeTo(null);
     }//GEN-LAST:event_btnVerActionPerformed
 
+    private void jComboBoxTipoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBoxTipoActionPerformed
+        if (cargando) {
+            return;                // ⛔ sistema
+        }
+        if (!jComboBoxTipo.isEnabled()) {
+            return; // ⛔ no editable
+        }
+        if (jComboBoxTipo.getSelectedItem() == null) {
+            return;
+        }
+
+        String tipo = jComboBoxTipo.getSelectedItem().toString();
+
+        // 👉 NUEVO TIPO
+        if (tipo.equals("➕ Nuevo tipo...")) {
+
+            String nuevoTipo = JOptionPane.showInputDialog(
+                    this,
+                    "Ingrese el nombre del nuevo tipo de vehículo:"
+            );
+
+            if (nuevoTipo == null || nuevoTipo.trim().isEmpty()) {
+                cargando = true;
+                jComboBoxTipo.setSelectedIndex(0);
+                cargando = false;
+                return;
+            }
+
+            String tipoNormalizado = nuevoTipo.trim();
+
+            for (int i = 0; i < jComboBoxTipo.getItemCount(); i++) {
+                if (jComboBoxTipo.getItemAt(i).equalsIgnoreCase(tipoNormalizado)) {
+                    JOptionPane.showMessageDialog(this,
+                            "Ese tipo ya existe.");
+                    cargando = true;
+                    jComboBoxTipo.setSelectedItem(jComboBoxTipo.getItemAt(i));
+                    cargando = false;
+                    return;
+                }
+            }
+
+            txtAreaDescrip.setText("");
+            txtTarifa.setText("");
+
+            cargando = true;
+            jComboBoxTipo.addItem(tipoNormalizado);
+            jComboBoxTipo.setSelectedItem(tipoNormalizado);
+            cargando = false;
+
+            JOptionPane.showMessageDialog(this,
+                    "Nuevo tipo agregado. Complete los datos.");
+            return;
+        }
+
+        // 👉 TIPO EXISTENTE → AUTOCOMPLETAR
+        String sql = """
+        SELECT TOP 1 descripcion, tarifaHora
+        FROM Recursos
+        WHERE tipo = ?
+    """;
+
+        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+            ps.setString(1, tipo);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                txtAreaDescrip.setText(rs.getString("descripcion"));
+                txtTarifa.setText(rs.getBigDecimal("tarifaHora").toString());
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error al cargar datos del tipo: " + e.getMessage());
+        }
+
+    }//GEN-LAST:event_jComboBoxTipoActionPerformed
+
+    private void jComboBoxEstadoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBoxEstadoActionPerformed
+        if (jComboBoxEstado.getSelectedItem() == null) {
+            return;
+        }
+
+        String estado = jComboBoxEstado.getSelectedItem().toString();
+
+        if (estado.equals("Ocupado")) {
+            btnGrabar.setEnabled(false);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "No puede registrar un recurso como OCUPADO.\n"
+                    + "Ese estado solo se asigna durante un alquiler.",
+                    "Estado no permitido",
+                    JOptionPane.WARNING_MESSAGE
+            );
+        } else {
+            btnGrabar.setEnabled(true);
+        }
+    }//GEN-LAST:event_jComboBoxEstadoActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel bg;
@@ -419,9 +582,10 @@ public class PanelRecursos2 extends javax.swing.JPanel {
     private javax.swing.JButton btnGrabar;
     private javax.swing.JButton btnNuevo;
     private javax.swing.JButton btnVer;
+    private javax.swing.JComboBox<String> jComboBoxEstado;
+    private javax.swing.JComboBox<String> jComboBoxTipo;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JLabel lblCant;
     private javax.swing.JLabel lblDescrip;
     private javax.swing.JLabel lblEstado;
     private javax.swing.JLabel lblId;
@@ -429,11 +593,8 @@ public class PanelRecursos2 extends javax.swing.JPanel {
     private javax.swing.JLabel lblTipo;
     private javax.swing.JLabel lblUbi;
     private javax.swing.JTextArea txtAreaDescrip;
-    private javax.swing.JTextField txtCant;
-    private javax.swing.JTextField txtEstado;
     private javax.swing.JTextField txtId;
     private javax.swing.JTextField txtTarifa;
-    private javax.swing.JTextField txtTipo;
     private javax.swing.JTextField txtUbi;
     // End of variables declaration//GEN-END:variables
 }

@@ -314,7 +314,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     }//GEN-LAST:event_btnAlquileresActionPerformed
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        PanelPagos p = new PanelPagos(conexion);
+        PanelPagos p = new PanelPagos(conexion,idUsuario);
         showPanel(p);
     }//GEN-LAST:event_jButton1ActionPerformed
      void showPanel(JPanel p){

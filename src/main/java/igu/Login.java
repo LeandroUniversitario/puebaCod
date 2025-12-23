@@ -6,6 +6,7 @@ public class Login {
         LoginVentana iniciar;
         iniciar = new LoginVentana();
         iniciar.setVisible(true);
+
     }
 
 }

@@ -4,7 +4,38 @@
  */
 package igu;
 
+import java.awt.List;
 import java.sql.Connection;
+// Para el diálogo de selección de archivo
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+
+// Para leer archivos
+import java.io.File;
+import java.io.FileInputStream;
+
+// Para JDBC
+import java.sql.Connection;
+import java.sql.CallableStatement;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
+
+// Para Apache POI (Excel)
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import org.apache.poi.ss.usermodel.Row;
+import java.util.ArrayList;
+
+
+
+
 
 /**
  *
@@ -57,6 +88,7 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         txtDni = new javax.swing.JTextField();
         txtNacionalidad = new javax.swing.JTextField();
         txtContacto = new javax.swing.JTextField();
+        btnImportar = new javax.swing.JButton();
 
         setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
@@ -87,6 +119,7 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
             }
         });
 
+        btnEliminaTurista.setBackground(new java.awt.Color(255, 51, 51));
         btnEliminaTurista.setText("eliminar");
         btnEliminaTurista.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -94,6 +127,7 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
             }
         });
 
+        btnGuardarTurista.setBackground(new java.awt.Color(51, 255, 51));
         btnGuardarTurista.setText("guardar");
         btnGuardarTurista.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -136,6 +170,14 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         txtContacto.setBackground(new java.awt.Color(255, 255, 255));
         txtContacto.setForeground(new java.awt.Color(0, 0, 0));
 
+        btnImportar.setBackground(new java.awt.Color(0, 153, 0));
+        btnImportar.setText("Importar");
+        btnImportar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnImportarActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -175,7 +217,10 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
                         .addGap(18, 18, 18)
                         .addComponent(btnEliminaTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(29, 29, 29)
-                        .addComponent(btnGuardarTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(btnGuardarTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGap(21, 21, 21)
+                        .addComponent(btnImportar, javax.swing.GroupLayout.PREFERRED_SIZE, 82, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap(95, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
@@ -210,7 +255,9 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
                     .addComponent(btnEditarTurista)
                     .addComponent(btnEliminaTurista)
                     .addComponent(btnGuardarTurista))
-                .addGap(183, 183, 183))
+                .addGap(90, 90, 90)
+                .addComponent(btnImportar)
+                .addGap(69, 69, 69))
         );
 
         add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
@@ -264,8 +311,14 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
     }//GEN-LAST:event_btnBuscarturistaActionPerformed
 
     private void btnEditarTuristaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarTuristaActionPerformed
-        habilitarCampos(true);
+        if (!txtDni.getText().isEmpty()) {
+            habilitarCampos(true);
         modo = "edicion";
+        }else{
+        JOptionPane.showMessageDialog(null, "buscar un turista primero");
+        
+        }
+        
     }//GEN-LAST:event_btnEditarTuristaActionPerformed
 
     private void txtApellidosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtApellidosActionPerformed
@@ -387,12 +440,152 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_btnEliminaTuristaActionPerformed
 
+    private void btnImportarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnImportarActionPerformed
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Selecciona el archivo Excel de turistas");
+        int seleccion = fileChooser.showOpenDialog(null);
+
+        if (seleccion == JFileChooser.APPROVE_OPTION) {
+            File archivo = fileChooser.getSelectedFile();
+            try (FileInputStream fis = new FileInputStream(archivo); Workbook workbook = new XSSFWorkbook(fis)) {
+
+                Sheet sheet = workbook.getSheetAt(0); // primera hoja
+                String sql = "{call dbo.registrarTurista(?, ?, ?, ?, ?)}";
+                CallableStatement cs = conexion.prepareCall(sql);
+
+                DataFormatter formatter = new DataFormatter();
+
+                int importados = 0;
+                int duplicados = 0;
+                int incompletos = 0;
+                ArrayList<Row> bloque = new ArrayList<>();
+
+                int contadorBloque = 0;
+
+                // Agrupar filas en bloques de 100
+                for (Row row : sheet) {
+                    if (row.getRowNum() == 0) {
+                        continue; // saltar encabezado
+                    }
+                    bloque.add(row);
+                    contadorBloque++;
+
+                    if (contadorBloque == 100) {
+                        int[] resultados = procesarBloqueOptimizado(bloque, cs, formatter);
+                        importados += resultados[0];
+                        duplicados += resultados[1];
+                        incompletos += resultados[2];
+
+                        bloque.clear();
+                        contadorBloque = 0;
+                    }
+                }
+
+                // Procesar bloque restante
+                if (!bloque.isEmpty()) {
+                    int[] resultados = procesarBloqueOptimizado(bloque, cs, formatter);
+                    importados += resultados[0];
+                    duplicados += resultados[1];
+                    incompletos += resultados[2];
+                }
+
+                cs.close();
+
+                JOptionPane.showMessageDialog(null, "Importación finalizada!\n"
+                        + "Registros importados: " + importados + "\n"
+                        + "Duplicados ignorados: " + duplicados + "\n"
+                        + "Registros incompletos ignorados: " + incompletos);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(null, "Error al importar: " + e.getMessage());
+            }
+        }
+    }//GEN-LAST:event_btnImportarActionPerformed
+
+    private int[] procesarBloqueOptimizado(ArrayList<Row> bloque, CallableStatement cs, DataFormatter formatter) throws SQLException {
+        int importados = 0;
+        int duplicados = 0;
+        int incompletos = 0;
+
+        // Limpiar y validar filas antes de batch
+        ArrayList<Row> filasValidas = new ArrayList<>();
+        for (Row row : bloque) {
+            String nombre = row.getCell(0) != null ? formatter.formatCellValue(row.getCell(0)).trim() : "";
+            String apellidos = row.getCell(1) != null ? formatter.formatCellValue(row.getCell(1)).trim() : "";
+            String dni = row.getCell(2) != null ? formatter.formatCellValue(row.getCell(2)).trim() : "";
+            String nacionalidad = row.getCell(3) != null ? formatter.formatCellValue(row.getCell(3)).trim() : null;
+            String contacto = row.getCell(4) != null ? formatter.formatCellValue(row.getCell(4)).trim() : null;
+
+            // Limpiar espacios y saltos
+            nombre = nombre.replaceAll("\\s+", " ").trim();
+            apellidos = apellidos.replaceAll("\\s+", " ").trim();
+            dni = dni.replaceAll("\\s+", "").trim();
+
+            // Validar obligatorios
+            if (nombre.isEmpty() || apellidos.isEmpty() || dni.isEmpty()) {
+                incompletos++;
+                continue;
+            }
+
+            // Verificar duplicado
+            try (PreparedStatement psCheck = cs.getConnection().prepareStatement(
+                    "SELECT COUNT(*) FROM Turista WHERE dni = ?")) {
+                psCheck.setString(1, dni);
+                ResultSet rs = psCheck.executeQuery();
+                rs.next();
+                if (rs.getInt(1) > 0) {
+                    duplicados++;
+                    continue;
+                }
+            }
+
+            // Almacenar fila válida en batch
+            cs.setString(1, nombre);
+            cs.setString(2, apellidos);
+            cs.setString(3, dni);
+            cs.setString(4, nacionalidad);
+            cs.setString(5, contacto);
+            cs.addBatch();
+            filasValidas.add(row);
+        }
+
+        // Ejecutar batch
+        try {
+            cs.executeBatch();
+            importados += filasValidas.size();
+        } catch (SQLException e) {
+            // Si falla el batch, insertar fila por fila
+            for (Row row : filasValidas) {
+                try {
+                    String nombre = row.getCell(0) != null ? formatter.formatCellValue(row.getCell(0)).trim() : "";
+                    String apellidos = row.getCell(1) != null ? formatter.formatCellValue(row.getCell(1)).trim() : "";
+                    String dni = row.getCell(2) != null ? formatter.formatCellValue(row.getCell(2)).trim() : "";
+                    String nacionalidad = row.getCell(3) != null ? formatter.formatCellValue(row.getCell(3)).trim() : null;
+                    String contacto = row.getCell(4) != null ? formatter.formatCellValue(row.getCell(4)).trim() : null;
+
+                    cs.setString(1, nombre);
+                    cs.setString(2, apellidos);
+                    cs.setString(3, dni);
+                    cs.setString(4, nacionalidad);
+                    cs.setString(5, contacto);
+                    cs.execute();
+                    importados++;
+                } catch (SQLException exFila) {
+                    exFila.printStackTrace(); // log si falla fila individual
+                }
+            }
+        }
+
+        return new int[]{importados, duplicados, incompletos};
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnBuscarturista;
     private javax.swing.JButton btnEditarTurista;
     private javax.swing.JButton btnEliminaTurista;
     private javax.swing.JButton btnGuardarTurista;
+    private javax.swing.JButton btnImportar;
     private javax.swing.JButton btnNuevoTurista;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel1;

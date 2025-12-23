@@ -4,6 +4,7 @@
  */
 package igu;
 
+import java.awt.BorderLayout;
 import java.sql.Connection;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -19,8 +20,25 @@ public class PanelMantenimiento extends javax.swing.JPanel {
     /**
      * Creates new form PanelMantenimiento
      */
-    public PanelMantenimiento(Connection conexion,String usuario,String nivel) {
+    public PanelMantenimiento(Connection conexion, String usuario, String nivel) {
         initComponents();
+        PanelDegradado fondo = new PanelDegradado();
+
+// MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
+        fondo.setLayout(new java.awt.BorderLayout());
+
+// Pasar jPanel1 dentro del panel degradado
+        PanelMant.setOpaque(false);
+        fondo.add(PanelMant, BorderLayout.CENTER);
+
+// Ahora reemplazas en el contenedor padre
+        remove(PanelMant);
+        add(fondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
+
+// refrescar
+        revalidate();
+        repaint();
+
         this.conexion = conexion;
         this.usuario=usuario;
         this.nivel=nivel;
@@ -40,8 +58,8 @@ public class PanelMantenimiento extends javax.swing.JPanel {
         btnGestionarPromos.setFont(fuente);
         btnGestionarPromos.setText("🎟️ GESTIONAR PROMOCIONES");
 
-        jButton1.setFont(fuente);
-        jButton1.setText("👥 GESTIONAR USUARIOS");
+        btnGestionarUsuarios.setFont(fuente);
+        btnGestionarUsuarios.setText("👥 GESTIONAR USUARIOS");
 
         btnGestionarNiv.setFont(fuente);
         btnGestionarNiv.setText("📈 GESTIONAR NIVELES");
@@ -58,12 +76,11 @@ public class PanelMantenimiento extends javax.swing.JPanel {
     private void initComponents() {
 
         PanelMant = new javax.swing.JPanel();
-        subPanelMant = new javax.swing.JPanel();
-        lblSaludoMantenimiento = new javax.swing.JLabel();
+        jLabel1 = new javax.swing.JLabel();
         btnGestionarTuristas = new javax.swing.JButton();
         btnGestionarRecursos = new javax.swing.JButton();
         btnGestionarPromos = new javax.swing.JButton();
-        jButton1 = new javax.swing.JButton();
+        btnGestionarUsuarios = new javax.swing.JButton();
         btnGestionarNiv = new javax.swing.JButton();
 
         setBackground(new java.awt.Color(204, 204, 204));
@@ -72,146 +89,130 @@ public class PanelMantenimiento extends javax.swing.JPanel {
 
         PanelMant.setBackground(new java.awt.Color(255, 255, 255));
 
-        subPanelMant.setBackground(new java.awt.Color(255, 255, 255));
+        jLabel1.setBackground(new java.awt.Color(0, 0, 0));
+        jLabel1.setFont(new java.awt.Font("DialogInput", 0, 18)); // NOI18N
+        jLabel1.setForeground(new java.awt.Color(0, 0, 0));
+        jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel1.setText("BIENVENIDO AL PANEL DE MANTENIMIENTO");
 
-        lblSaludoMantenimiento.setForeground(new java.awt.Color(0, 0, 0));
-        lblSaludoMantenimiento.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        lblSaludoMantenimiento.setText("          BIENVENIDO A MANTENIMIENTO DE DATOS");
-
-        btnGestionarTuristas.setText("GESTIONAR TURISTAS");
-        btnGestionarTuristas.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btnGestionarTuristas.setText("Gestionar Turistas");
         btnGestionarTuristas.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnGestionarTuristasActionPerformed(evt);
             }
         });
 
-        btnGestionarRecursos.setText("GESTIONAR RECURSOS");
-        btnGestionarRecursos.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btnGestionarRecursos.setText("GestionarRecursos");
         btnGestionarRecursos.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnGestionarRecursosActionPerformed(evt);
             }
         });
 
-        btnGestionarPromos.setText("GESTIONAR PROMOCIONES");
-        btnGestionarPromos.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btnGestionarPromos.setText("jButton1");
         btnGestionarPromos.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnGestionarPromosActionPerformed(evt);
             }
         });
 
-        jButton1.setText("GESTIONAR USUARIOS");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
+        btnGestionarUsuarios.setText("jButton1");
+        btnGestionarUsuarios.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
+                btnGestionarUsuariosActionPerformed(evt);
             }
         });
 
-        btnGestionarNiv.setText("GESTIONAR NIVELES");
+        btnGestionarNiv.setText("jButton1");
         btnGestionarNiv.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnGestionarNivActionPerformed(evt);
             }
         });
 
-        javax.swing.GroupLayout subPanelMantLayout = new javax.swing.GroupLayout(subPanelMant);
-        subPanelMant.setLayout(subPanelMantLayout);
-        subPanelMantLayout.setHorizontalGroup(
-            subPanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(lblSaludoMantenimiento, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, subPanelMantLayout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(subPanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(btnGestionarTuristas, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(btnGestionarPromos, javax.swing.GroupLayout.DEFAULT_SIZE, 253, Short.MAX_VALUE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(subPanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(btnGestionarRecursos, javax.swing.GroupLayout.DEFAULT_SIZE, 258, Short.MAX_VALUE)
-                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addGap(25, 25, 25))
-            .addGroup(subPanelMantLayout.createSequentialGroup()
-                .addGap(209, 209, 209)
-                .addComponent(btnGestionarNiv, javax.swing.GroupLayout.PREFERRED_SIZE, 210, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(221, Short.MAX_VALUE))
-        );
-        subPanelMantLayout.setVerticalGroup(
-            subPanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(subPanelMantLayout.createSequentialGroup()
-                .addGap(23, 23, 23)
-                .addComponent(lblSaludoMantenimiento, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(39, 39, 39)
-                .addGroup(subPanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(btnGestionarTuristas)
-                    .addComponent(btnGestionarRecursos))
-                .addGap(42, 42, 42)
-                .addGroup(subPanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(btnGestionarPromos)
-                    .addComponent(jButton1))
-                .addGap(52, 52, 52)
-                .addComponent(btnGestionarNiv)
-                .addContainerGap(198, Short.MAX_VALUE))
-        );
-
         javax.swing.GroupLayout PanelMantLayout = new javax.swing.GroupLayout(PanelMant);
         PanelMant.setLayout(PanelMantLayout);
         PanelMantLayout.setHorizontalGroup(
             PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(subPanelMant, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(PanelMantLayout.createSequentialGroup()
+                .addGap(47, 47, 47)
+                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(btnGestionarTuristas, javax.swing.GroupLayout.DEFAULT_SIZE, 212, Short.MAX_VALUE)
+                    .addComponent(btnGestionarPromos, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 113, Short.MAX_VALUE)
+                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(btnGestionarRecursos, javax.swing.GroupLayout.PREFERRED_SIZE, 227, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnGestionarUsuarios, javax.swing.GroupLayout.PREFERRED_SIZE, 227, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(41, 41, 41))
+            .addGroup(PanelMantLayout.createSequentialGroup()
+                .addGap(203, 203, 203)
+                .addComponent(btnGestionarNiv, javax.swing.GroupLayout.PREFERRED_SIZE, 199, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         PanelMantLayout.setVerticalGroup(
             PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(subPanelMant, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(PanelMantLayout.createSequentialGroup()
+                .addGap(40, 40, 40)
+                .addComponent(jLabel1)
+                .addGap(91, 91, 91)
+                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnGestionarTuristas)
+                    .addComponent(btnGestionarRecursos))
+                .addGap(32, 32, 32)
+                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnGestionarPromos)
+                    .addComponent(btnGestionarUsuarios))
+                .addGap(62, 62, 62)
+                .addComponent(btnGestionarNiv)
+                .addContainerGap(178, Short.MAX_VALUE))
         );
 
         add(PanelMant, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
     }// </editor-fold>//GEN-END:initComponents
-    void showPanelMant(JPanel p){
-        p.setSize(640, 500);
-        p.setLocation(0, 0);
-        PanelMant.removeAll();
-         PanelMant.setLayout(null);    //
-        PanelMant.add(p);
-        PanelMant.revalidate();
-        PanelMant.repaint();
-    
-    
-    }
+
     private void btnGestionarTuristasActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGestionarTuristasActionPerformed
-     PanelGestionarTurista panelTuristas = new PanelGestionarTurista(conexion,nivel);
-     showPanelMant(panelTuristas);
-   
+          PanelGestionarTurista panelTuristas = new PanelGestionarTurista(conexion,nivel);
+        showPanelMant(panelTuristas);
     }//GEN-LAST:event_btnGestionarTuristasActionPerformed
 
-    private void btnGestionarRecursosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGestionarRecursosActionPerformed
-     PanelRecursos2 pRecurso = new PanelRecursos2(conexion,nivel);
-        showPanelMant(pRecurso);
-    }//GEN-LAST:event_btnGestionarRecursosActionPerformed
-
     private void btnGestionarPromosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGestionarPromosActionPerformed
-        PanelPromociones p = new PanelPromociones(conexion, nivel);
+          PanelPromociones p = new PanelPromociones(conexion, nivel);
         showPanelMant(p);
     }//GEN-LAST:event_btnGestionarPromosActionPerformed
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        if (nivel.equalsIgnoreCase("administrador")) {
+    private void btnGestionarRecursosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGestionarRecursosActionPerformed
+          PanelRecursos2 pRecurso = new PanelRecursos2(conexion,nivel);
+        showPanelMant(pRecurso);
+    }//GEN-LAST:event_btnGestionarRecursosActionPerformed
+
+    private void btnGestionarUsuariosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGestionarUsuariosActionPerformed
+          if (nivel.equalsIgnoreCase("administrador")) {
             PanelGestionarUsuarios p = new PanelGestionarUsuarios(conexion, nivel);
             showPanelMant(p);
         }else{
             JOptionPane.showMessageDialog(null,"opcion solo para administrador");
         }
-        
-    }//GEN-LAST:event_jButton1ActionPerformed
+    }//GEN-LAST:event_btnGestionarUsuariosActionPerformed
 
     private void btnGestionarNivActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGestionarNivActionPerformed
-           if (nivel.equalsIgnoreCase("administrador")) {
+        if (nivel.equalsIgnoreCase("administrador")) {
             PanelNiveles p = new PanelNiveles(conexion);
             showPanelMant(p);
         }else{
             JOptionPane.showMessageDialog(null,"opcion solo para administrador");
         }
     }//GEN-LAST:event_btnGestionarNivActionPerformed
+    void showPanelMant(JPanel p){
+        p.setSize(640, 500);
+        p.setLocation(0, 0);
+        PanelMant.removeAll();
+        PanelMant.add(p);
+        PanelMant.revalidate();
+        PanelMant.repaint();
+    
+    
+    }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -220,8 +221,7 @@ public class PanelMantenimiento extends javax.swing.JPanel {
     private javax.swing.JButton btnGestionarPromos;
     private javax.swing.JButton btnGestionarRecursos;
     private javax.swing.JButton btnGestionarTuristas;
-    private javax.swing.JButton jButton1;
-    private javax.swing.JLabel lblSaludoMantenimiento;
-    private javax.swing.JPanel subPanelMant;
+    private javax.swing.JButton btnGestionarUsuarios;
+    private javax.swing.JLabel jLabel1;
     // End of variables declaration//GEN-END:variables
 }

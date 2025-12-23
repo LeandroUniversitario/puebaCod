@@ -4,6 +4,8 @@
  */
 package igu;
 
+import java.awt.BorderLayout;
+import java.math.BigDecimal;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,13 +26,33 @@ public class PanelAlquiler extends javax.swing.JPanel {
     private Connection conexion;
     private String idUsuario;
     private String modo;
+    private boolean modoLimpiar = false;
+
     /**
      * Creates new form PanelAlquiler
      */
     public PanelAlquiler(Connection conexion, String idUsuario) {
         initComponents();
-        jSpinnerHorasUsadas.addChangeListener(e -> calcularSubtotalAutomatico());
 
+        PanelDegradado fondo = new PanelDegradado();
+
+// MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
+        fondo.setLayout(new java.awt.BorderLayout());
+
+// Pasar jPanel1 dentro del panel degradado
+        jPanel1.setOpaque(false);
+        fondo.add(jPanel1, BorderLayout.CENTER);
+
+// Ahora reemplazas en el contenedor padre
+        remove(jPanel1);
+        add(fondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
+
+// refrescar
+        revalidate();
+        repaint();
+        jSpinnerHorasUsadas.addChangeListener(e -> calcularSubtotalAutomatico());
+       // ocultarColumna(0);
+        ocultarColumna(1);
        
 
         this.conexion = conexion;
@@ -43,6 +65,13 @@ public class PanelAlquiler extends javax.swing.JPanel {
           cargarRecursos();
 
     }
+
+    private void ocultarColumna(int index) {
+        tblDetalles.getColumnModel().getColumn(index).setMinWidth(0);
+        tblDetalles.getColumnModel().getColumn(index).setMaxWidth(0);
+        tblDetalles.getColumnModel().getColumn(index).setWidth(0);
+    }
+
 
     private void aplicarPromocionAutomatica() {
         try {
@@ -123,32 +152,45 @@ public class PanelAlquiler extends javax.swing.JPanel {
         }
     }
     
-   private void cargarRecursos() {
-    jComboBoxRecursos.removeAllItems();
+    private void cargarRecursos() {
+        jComboBoxRecursos.removeAllItems();
 
-    String sql = "SELECT idRecursos, tipo, tarifaHora FROM Recursos";
+        String sql = """
+        SELECT idRecursos, tipo, descripcion, tarifaHora, estado, ubicacion
+        FROM Recursos
+        WHERE estado = 'Disponible'
+    """;
 
-    try (PreparedStatement ps = conexion.prepareStatement(sql);
-         ResultSet rs = ps.executeQuery()) {
+        try (PreparedStatement ps = conexion.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
 
-        while (rs.next()) {
-            Recurso r = new Recurso(
-                rs.getString("idRecursos"),
-                rs.getString("tipo"),
-                rs.getDouble("tarifaHora")
+            while (rs.next()) {
+                Recurso r = new Recurso(
+                        rs.getString("idRecursos"),
+                        rs.getString("tipo"),
+                        rs.getString("descripcion"),
+                        rs.getDouble("tarifaHora"),
+                        rs.getString("estado"),
+                        rs.getString("ubicacion")
+                );
+
+                jComboBoxRecursos.addItem(r);
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Error al cargar recursos: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
             );
-            jComboBoxRecursos.addItem(r);
         }
-
-    } catch (SQLException e) {
-        JOptionPane.showMessageDialog(this, "Error al cargar recursos: " + e.getMessage());
     }
-}
+
 
 
    
     private void limpiarCampos() {
-      
+             modoLimpiar = true;
         txtIdAlquiler.setText("");
         txtIdTurista.setText("");
       
@@ -168,6 +210,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         javax.swing.table.DefaultTableModel modelo = (javax.swing.table.DefaultTableModel) tblDetalles.getModel();
         modelo.setRowCount(0);
         
+        modoLimpiar=false;
 
     }
 
@@ -232,7 +275,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         jDateChooserFecha.setEnabled(habilitar);
 
         // ComboBoxes
-        jComboBoxEstado.setEditable(habilitar);
+        jComboBoxEstado.setEnabled(habilitar);
         jComboBoxPromos.setEnabled(false);
 
         // Spinner
@@ -338,7 +381,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
             },
             new String [] {
-                "Id detalle", "id recurso", "nombre", "precio hora", "horas", "sub"
+                "Id detalle", "re", "id recurso", "nombre", "precio hora", "horas", "sub"
             }
         ));
         jScrollPane1.setViewportView(tblDetalles);
@@ -357,6 +400,11 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
         jComboBoxEstado.setForeground(new java.awt.Color(0, 0, 0));
         jComboBoxEstado.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "reservado", "activo", "finalizado" }));
+        jComboBoxEstado.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jComboBoxEstadoActionPerformed(evt);
+            }
+        });
 
         lblRecurso.setForeground(new java.awt.Color(0, 0, 0));
         lblRecurso.setText("Recurso:");
@@ -502,7 +550,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
                                 .addComponent(btnEliminarAlquiler, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                 .addComponent(btnGrabar, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(0, 39, Short.MAX_VALUE)))
+                        .addGap(0, 14, Short.MAX_VALUE)))
                 .addContainerGap())
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(32, 32, 32)
@@ -529,12 +577,12 @@ public class PanelAlquiler extends javax.swing.JPanel {
                                 .addContainerGap(268, Short.MAX_VALUE))
                             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                                 .addGap(0, 0, Short.MAX_VALUE)
-                                .addComponent(jComboBoxRecursos, javax.swing.GroupLayout.PREFERRED_SIZE, 187, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(32, 32, 32)
+                                .addComponent(jComboBoxRecursos, javax.swing.GroupLayout.PREFERRED_SIZE, 314, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(30, 30, 30)
                                 .addComponent(lblHorasUsadas)
-                                .addGap(27, 27, 27)
+                                .addGap(18, 18, 18)
                                 .addComponent(jSpinnerHorasUsadas, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(162, 162, 162))))))
+                                .addGap(46, 46, 46))))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -588,7 +636,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     .addComponent(lblSubtotal)
                     .addComponent(txtPrecioHora, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(lblPrecioHora))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 36, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                         .addComponent(btnVerAlquileres)
@@ -658,6 +706,9 @@ public class PanelAlquiler extends javax.swing.JPanel {
        limpiarCampos();
        modo="nuevo";
         habilitarCampos(true);
+        btnEditar.setEnabled(false);
+        btnEliminarAlquiler.setEnabled(false);
+        cargarRecursos();
        
        
     }//GEN-LAST:event_btnNuevoActionPerformed
@@ -697,18 +748,21 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     return;
                 }
 
-                // 3️⃣ Validar stock disponible
-                String sqlCheck = "SELECT cantidad FROM Recursos WHERE idRecursos = ?";
+                // 3️⃣ Validar que el recurso siga disponible
+                String sqlCheck = "SELECT estado FROM Recursos WHERE idRecursos = ?";
                 try (PreparedStatement ps = conexion.prepareStatement(sqlCheck)) {
                     ps.setString(1, r.getId());
                     ResultSet rs = ps.executeQuery();
-                    if (rs.next() && rs.getInt("cantidad") <= 0) {
+
+                    if (rs.next() && !rs.getString("estado").equalsIgnoreCase("Disponible")) {
                         JOptionPane.showMessageDialog(this,
-                                "⚠️ No hay unidades disponibles para este recurso.",
-                                "Stock insuficiente", JOptionPane.WARNING_MESSAGE);
+                                "⚠️ Este vehículo ya no está disponible.",
+                                "No disponible",
+                                JOptionPane.WARNING_MESSAGE);
                         return;
                     }
                 }
+
 
                 // 4️⃣ Calcular subtotal
                 double precioHora = r.getTarifaHora();
@@ -717,14 +771,20 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
                 // 5️⃣ Agregar fila a la tabla
                 DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
+                
                 modelo.addRow(new Object[]{
-                    "", // idDetalle
+                    "",
+                    r, // 🔹 OBJETO Recurso (columna oculta)
                     r.getId(),
                     r.getTipo(),
                     precioHora,
                     horasUsadas,
                     subtotal
                 });
+                
+             
+                // 8️⃣ Quitar recurso del combo visualmente
+                jComboBoxRecursos.removeItem(r);
 
                 // 6️⃣ Actualizar cálculos del alquiler
                 calcularDuracion();
@@ -769,14 +829,22 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
         try {
             DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
+            String idRecurso = modelo.getValueAt(filaSeleccionada, 2).toString();
 
-            // 🔹 Eliminar la fila seleccionada
             modelo.removeRow(filaSeleccionada);
+            // 🔹 SOLO PARA EFECTO VISUAL
+            
+
+                Recurso r = obtenerRecursoPorId(idRecurso);
+
+                    jComboBoxRecursos.addItem(r);
+                
+            
 
             // 🔹 Recalcular la duración como el valor MÁXIMO de horas en la tabla
             int nuevaDuracion = 0;
             for (int i = 0; i < modelo.getRowCount(); i++) {
-                int horas = Integer.parseInt(modelo.getValueAt(i, 4).toString());
+                int horas = Integer.parseInt(modelo.getValueAt(i, 5).toString());
                 nuevaDuracion = Math.max(nuevaDuracion, horas);
             }
 
@@ -819,6 +887,31 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
 
     }//GEN-LAST:event_btnEliminarReActionPerformed
+
+    private Recurso obtenerRecursoPorId(String idRecurso) throws SQLException {
+        String sql = """
+        SELECT idRecursos, tipo, descripcion, tarifaHora, estado, ubicacion
+        FROM Recursos
+        WHERE idRecursos = ?
+    """;
+
+        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+            ps.setString(1, idRecurso);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return new Recurso(
+                        rs.getString("idRecursos"),
+                        rs.getString("tipo"),
+                        rs.getString("descripcion"),
+                        rs.getDouble("tarifaHora"),
+                        rs.getString("estado"),
+                        rs.getString("ubicacion")
+                );
+            }
+        }
+        return null;
+    }
 
     private void buscarAlquilerPorId(String idBuscar) {
         if (idBuscar == null || idBuscar.trim().isEmpty()) {
@@ -893,6 +986,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
             while (rs.next()) {
                 modelo.addRow(new Object[]{
                     rs.getString("idDetalleAlquiler"),
+                    "",//r 
                     rs.getString("idRecurso"),
                     rs.getString("tipo"),
                     rs.getDouble("tarifaHora"),
@@ -914,6 +1008,9 @@ public class PanelAlquiler extends javax.swing.JPanel {
         String idBuscar = JOptionPane.showInputDialog(this, "Ingrese el ID del alquiler (Ej: A001):");
         if (idBuscar != null && !idBuscar.trim().isEmpty()) {
             buscarAlquilerPorId(idBuscar.trim());
+            cargarRecursos();
+            btnEditar.setEnabled(true);
+            btnEliminarAlquiler.setEnabled(true);
         }
     }//GEN-LAST:event_btnBuscarAlquilerActionPerformed
 
@@ -987,19 +1084,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         try {
             conexion.setAutoCommit(false); // Iniciar transacción
 
-            // 🟢 Primero devolvemos el stock de todos los recursos usados en este alquiler
-            String sqlDevolver = """
-            UPDATE Recursos
-            SET cantidad = cantidad + 1
-            WHERE idRecursos IN (
-                SELECT idRecurso FROM DetalleAlquiler WHERE idAlquiler = ?
-            )
-        """;
-            try (PreparedStatement psDev = conexion.prepareStatement(sqlDevolver)) {
-                psDev.setString(1, idAlquiler);
-                int devueltos = psDev.executeUpdate();
-                System.out.println("Stock devuelto para " + devueltos + " recursos del alquiler " + idAlquiler);
-            }
+           
 
             // 🟡 Luego eliminamos los detalles
             String sqlDetalles = "DELETE FROM DetalleAlquiler WHERE idAlquiler = ?";
@@ -1018,9 +1103,9 @@ public class PanelAlquiler extends javax.swing.JPanel {
             conexion.commit();
 
             JOptionPane.showMessageDialog(this,
-                    " Alquiler y sus detalles eliminados correctamente.\n"
-                    + "El stock de los recursos fue restaurado.",
-                    "Eliminado", JOptionPane.INFORMATION_MESSAGE);
+                    "✅ Alquiler eliminado correctamente.\n"
+                + "Los recursos quedaron disponibles.",
+                "Eliminado", JOptionPane.INFORMATION_MESSAGE);
 
             // 5️⃣ Limpiar interfaz
             limpiarCampos();
@@ -1030,6 +1115,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
             btnEditar.setEnabled(false);
             btnEliminarAlquiler.setEnabled(false);
             btnGrabar.setEnabled(false);
+            cargarRecursos();
 
         } catch (SQLException e) {
             try {
@@ -1113,30 +1199,17 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     }
                 }
 
-                // Guardar los detalles (y restar stock)
+                // Guardar los detalles 
                 guardarSoloNuevosDetalles(idAlquiler);
 
                 JOptionPane.showMessageDialog(this, "✅ Alquiler registrado correctamente.");
-
+                cargarRecursos();//recargar para q solo aparezcan los disponibles
                 // ✏️ 4️⃣ Si es EDICIÓN
             } else if (modo.equals("edicion")) {
                eliminarDetallesQuitados(idAlquiler, (DefaultTableModel) tblDetalles.getModel());
 
-                // ⚙️ Si el estado nuevo es FINALIZADO → devolver stock
-                if (estado.equalsIgnoreCase("finalizado")) {
-                    String sqlDevolver = """
-                    UPDATE Recursos
-                    SET cantidad = cantidad + 1
-                    WHERE idRecursos IN (
-                        SELECT idRecurso FROM DetalleAlquiler WHERE idAlquiler = ?
-                    )
-                """;
-                    try (PreparedStatement psDev = conexion.prepareStatement(sqlDevolver)) {
-                        psDev.setString(1, idAlquiler);
-                        psDev.executeUpdate();
-                    }
-                }
-
+                guardarSoloNuevosDetalles(idAlquiler);
+                cargarDetallesAlquiler(idAlquiler);
                 // ✏️ Actualizar cabecera
                 String sqlUpdate = """
                 UPDATE Alquiler
@@ -1158,15 +1231,17 @@ public class PanelAlquiler extends javax.swing.JPanel {
                 }
 
                 // 🧩 Insertar SOLO los detalles nuevos (sin duplicar ni tocar los existentes)
-                guardarSoloNuevosDetalles(idAlquiler);
-
+                
+                
                 JOptionPane.showMessageDialog(this, "✅ Alquiler actualizado correctamente.");
+                 cargarRecursos();
             }
 
             // 🟢 Confirmar todo
             conexion.commit();
             modo = null;
             habilitarCampos(false);
+           
 
         } catch (Exception e) {
             try {
@@ -1213,6 +1288,41 @@ public class PanelAlquiler extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_jComboBoxRecursosActionPerformed
 
+    private void jComboBoxEstadoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBoxEstadoActionPerformed
+        if (modoLimpiar) {
+            return; // ⛔ ignorar eventos provocados por limpiar
+        }
+
+        validarEstadoAlquiler();
+
+    }//GEN-LAST:event_jComboBoxEstadoActionPerformed
+
+    private void validarEstadoAlquiler() {
+        Object item = jComboBoxEstado.getSelectedItem();
+
+        if (item == null) {
+            btnGrabar.setEnabled(false);
+            return;
+        }
+
+        String estado = item.toString();
+
+        if (txtIdAlquiler.getText().trim().isEmpty()
+                && (estado.equalsIgnoreCase("FINALIZADO"))) {
+
+            JOptionPane.showMessageDialog(this,
+                    "No puede finalizar un alquiler que no ha sido grabado.",
+                    "Aviso",
+                    JOptionPane.WARNING_MESSAGE);
+
+            btnGrabar.setEnabled(false);
+            return;
+        }
+
+        btnGrabar.setEnabled(true);
+    }
+
+    
     private void calcularSubtotalAutomatico() {
         try {
             Recurso r = (Recurso) jComboBoxRecursos.getSelectedItem();
@@ -1241,36 +1351,22 @@ public class PanelAlquiler extends javax.swing.JPanel {
         String sqlDetalle = "{call registrarDetalleAlquiler(?, ?, ?, ?)}";
 
         for (int i = 0; i < modelo.getRowCount(); i++) {
-            String idDetalle = modelo.getValueAt(i, 0) != null ? modelo.getValueAt(i, 0).toString().trim() : "";
+            String idDetalle = modelo.getValueAt(i, 0) != null
+                    ? modelo.getValueAt(i, 0).toString().trim()
+                    : "";
 
-            // 🔹 Solo insertar si el detalle es realmente nuevo
-            if (idDetalle.isEmpty() || idDetalle.equalsIgnoreCase("null")) {
-                String idRecurso = modelo.getValueAt(i, 1).toString();
+            // 🔹 Solo insertar si es nuevo
+            if (idDetalle.isEmpty()) {
+                String idRecurso = modelo.getValueAt(i, 2).toString();
+                int horas = Integer.parseInt(modelo.getValueAt(i, 5).toString());
+                double subtotal = Double.parseDouble(modelo.getValueAt(i, 6).toString());
 
-                // ⚙️ 1️⃣ Verificar si ya existe ese recurso en este alquiler (evita duplicados)
-                String checkSql = "SELECT COUNT(*) FROM DetalleAlquiler WHERE idAlquiler = ? AND idRecurso = ?";
-                try (PreparedStatement psCheck = conexion.prepareStatement(checkSql)) {
-                    psCheck.setString(1, idAlquiler);
-                    psCheck.setString(2, idRecurso);
-                    ResultSet rsCheck = psCheck.executeQuery();
-
-                    if (rsCheck.next() && rsCheck.getInt(1) == 0) {
-                        // 🧾 2️⃣ Registrar el nuevo detalle con SP
-                        try (CallableStatement cs = conexion.prepareCall(sqlDetalle)) {
-                            cs.setString(1, idAlquiler);
-                            cs.setString(2, idRecurso);
-                            cs.setInt(3, Integer.parseInt(modelo.getValueAt(i, 4).toString())); // horas
-                            cs.setBigDecimal(4, new java.math.BigDecimal(modelo.getValueAt(i, 5).toString())); // subtotal
-                            cs.execute();
-                        }
-
-                        // 🔽 3️⃣ Restar stock solo si no se había descontado antes
-                        String updateStock = "UPDATE Recursos SET cantidad = cantidad - 1 WHERE idRecursos = ?";
-                        try (PreparedStatement psStock = conexion.prepareStatement(updateStock)) {
-                            psStock.setString(1, idRecurso);
-                            psStock.executeUpdate();
-                        }
-                    }
+                try (CallableStatement cs = conexion.prepareCall(sqlDetalle)) {
+                    cs.setString(1, idAlquiler);
+                    cs.setString(2, idRecurso);
+                    cs.setInt(3, horas);
+                    cs.setBigDecimal(4, BigDecimal.valueOf(subtotal));
+                    cs.execute();
                 }
             }
         }
@@ -1305,7 +1401,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
 
         for (int i = 0; i < modelo.getRowCount(); i++) {
-            Object valor = modelo.getValueAt(i, 5); // columna subtotal
+            Object valor = modelo.getValueAt(i, 6); // columna subtotal
             if (valor != null) {
                 total += Double.parseDouble(valor.toString());
             }
@@ -1318,10 +1414,13 @@ public class PanelAlquiler extends javax.swing.JPanel {
     private void eliminarDetallesQuitados(String idAlquiler, DefaultTableModel modeloActual) throws SQLException {
         // 1️⃣ Obtener IDs de los detalles actuales en la interfaz
         java.util.Set<String> detallesActuales = new java.util.HashSet<>();
+        
         for (int i = 0; i < modeloActual.getRowCount(); i++) {
+            
             Object idDetalleObj = modeloActual.getValueAt(i, 0);
             if (idDetalleObj != null && !idDetalleObj.toString().trim().isEmpty()) {
                 detallesActuales.add(idDetalleObj.toString().trim());
+                
             }
         }
 
@@ -1341,13 +1440,6 @@ public class PanelAlquiler extends javax.swing.JPanel {
                             "DELETE FROM DetalleAlquiler WHERE idDetalleAlquiler = ?")) {
                         psDel.setString(1, idDetalleBD);
                         psDel.executeUpdate();
-                    }
-
-                    // 4️⃣ Devolver el stock del recurso eliminado
-                    try (PreparedStatement psStock = conexion.prepareStatement(
-                            "UPDATE Recursos SET cantidad = cantidad + 1 WHERE idRecursos = ?")) {
-                        psStock.setString(1, idRecursoBD);
-                        psStock.executeUpdate();
                     }
 
                     System.out.println("🗑️ Detalle eliminado de BD: " + idDetalleBD);

@@ -5,6 +5,7 @@
 package igu;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -34,33 +35,32 @@ public class PanelRecursos extends javax.swing.JPanel {
 
     private void cargarDatosRecursos() {
         DefaultTableModel modelo = (DefaultTableModel) tblRecursos.getModel();
-        modelo.setRowCount(0); // 🔹 Limpia las filas actuales
+        modelo.setRowCount(0); // Limpiar tabla
 
-        try {
-            String sql = "SELECT idRecursos, tipo, descripcion, tarifaHora, estado, ubicacion,cantidad FROM Recursos";
-            Statement st = conexion.createStatement();
-            ResultSet rs = st.executeQuery(sql);
+        String sql = """
+        SELECT idRecursos, tipo, descripcion, tarifaHora, estado, ubicacion
+        FROM Recursos
+        ORDER BY tipo, idRecursos
+    """;
 
-            // 🔹 Agregamos filas al modelo ya existente
+        try (PreparedStatement ps = conexion.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
-                Object[] fila = {
+                modelo.addRow(new Object[]{
                     rs.getString("idRecursos"),
                     rs.getString("tipo"),
                     rs.getString("descripcion"),
-                    rs.getDouble("tarifaHora"),
+                    rs.getBigDecimal("tarifaHora"),
                     rs.getString("estado"),
-                    rs.getString("ubicacion"),
-                    rs.getString("cantidad")
-                    
-                };
-                modelo.addRow(fila);
+                    rs.getString("ubicacion")
+                });
             }
 
-            tblRecursos.setModel(modelo);
-
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar recursos: " + e.getMessage(),
-                    "Error SQL", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this,
+                    "Error al cargar recursos:\n" + e.getMessage(),
+                    "Error SQL",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -83,13 +83,13 @@ public class PanelRecursos extends javax.swing.JPanel {
 
         tblRecursos.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null, null, null, null, null},
-                {null, null, null, null, null, null, null},
-                {null, null, null, null, null, null, null},
-                {null, null, null, null, null, null, null}
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null},
+                {null, null, null, null, null, null}
             },
             new String [] {
-                "idRecursos", "tipo", "descripcion", "tarifaHora", "estado", "ubicacion", "cantidad"
+                "idRecursos", "tipo", "descripcion", "tarifaHora", "estado", "ubicacion"
             }
         ));
         jScrollPane1.setViewportView(tblRecursos);

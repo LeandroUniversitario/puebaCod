@@ -4,6 +4,7 @@
  */
 package igu;
 
+import java.awt.BorderLayout;
 import java.math.BigDecimal;
 import java.sql.CallableStatement;
 import java.sql.Connection;
@@ -18,29 +19,106 @@ import javax.swing.JOptionPane;
  * @author rafae
  */
 public class PanelPagos extends javax.swing.JPanel {
+
     private Connection conexion;
-    private String modo; 
+    private String modo;
+    private String idUsuario;
+
     /**
      * Creates new form PanelPagos
      */
-    public PanelPagos(Connection conexion) {
+    public PanelPagos(Connection conexion, String idUsuario) {
         initComponents();
+
+        PanelDegradado fondo = new PanelDegradado();
+
+// MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
+        fondo.setLayout(new java.awt.BorderLayout());
+
+// Pasar jPanel1 dentro del panel degradado
+        jPanel1.setOpaque(false);
+        fondo.add(jPanel1, BorderLayout.CENTER);
+
+// Ahora reemplazas en el contenedor padre
+        remove(jPanel1);
+        add(fondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
+
+// refrescar
+        revalidate();
+        repaint();
+        this.idUsuario = idUsuario;
         this.conexion = conexion;
         habilitarCampos(false);
         txtIgv.setEditable(false);
         txtIgv.setText("0.00");
-        
-         // 🟢 Calcular IGV y total automáticamente al escribir
+
+        // 🟢 Calcular IGV y total automáticamente al escribir
         txtMontoSinIgv.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyReleased(java.awt.event.KeyEvent evt) {
                 calcularMontos();
             }
         });
-
+        cargarUltimoAlquiler();
 
     }
-    
+
+    private void cargarUltimoAlquiler() {
+
+        String sql = """
+        SELECT TOP 1
+            a.idAlquiler,
+            t.dni,
+            a.total
+        FROM Alquiler a
+        JOIN Turista t ON a.idTurista = t.idTurista
+        WHERE a.idUsuario = ?
+          AND NOT EXISTS (
+              SELECT 1
+              FROM Pago p
+              WHERE p.idAlquiler = a.idAlquiler
+          )
+        ORDER BY a.fechaInicio DESC
+    """;
+
+        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setString(1, idUsuario);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                txtIdAlquiler.setText(rs.getString("idAlquiler"));
+                txtDniTuri.setText(rs.getString("dni"));
+                txtMontoSinIgv.setText(rs.getBigDecimal("total").toString());
+
+                calcularMontos();
+
+                JcmbMetodoPago.setSelectedIndex(0);
+                JcmbEstadoPago.setSelectedItem("Pendiente");
+
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "No hay alquileres pendientes de pago",
+                        "Información",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error al cargar alquiler pendiente: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+        habilitarCampos(true);
+        modo="nuevo";
+    }
+
+
+ 
+
     private void limpiarCampos() {
         txtIdPago.setText("");
         txtIdAlquiler.setText("");

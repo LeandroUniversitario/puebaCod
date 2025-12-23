@@ -16,7 +16,7 @@ public class PanelEntrada extends javax.swing.JPanel {
     public PanelEntrada(String saludo) {
         initComponents();
         this.saludo = saludo;
-        jLabelSaludo.setText("bienvenido "+ saludo);
+        jLabel1.setText("bienvenido "+ saludo);
     }
 
     /**
@@ -28,15 +28,23 @@ public class PanelEntrada extends javax.swing.JPanel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jLabel1 = new javax.swing.JLabel();
         jPanel1 = new javax.swing.JPanel();
         jLabelSaludo = new javax.swing.JLabel();
 
         setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
+        jLabel1.setFont(new java.awt.Font("DialogInput", 0, 18)); // NOI18N
+        jLabel1.setForeground(new java.awt.Color(0, 0, 0));
+        jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel1.setText("jLabel1");
+        add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 110));
+
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabelSaludo.setForeground(new java.awt.Color(0, 0, 0));
-        jLabelSaludo.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabelSaludo.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        jLabelSaludo.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/unnamed (1).jpg"))); // NOI18N
         jLabelSaludo.setText("BIENVENIDO");
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
@@ -44,16 +52,12 @@ public class PanelEntrada extends javax.swing.JPanel {
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(182, 182, 182)
-                .addComponent(jLabelSaludo, javax.swing.GroupLayout.PREFERRED_SIZE, 267, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(191, Short.MAX_VALUE))
+                .addComponent(jLabelSaludo, javax.swing.GroupLayout.PREFERRED_SIZE, 641, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jLabelSaludo, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(394, Short.MAX_VALUE))
+            .addComponent(jLabelSaludo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
 
         add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
@@ -61,6 +65,7 @@ public class PanelEntrada extends javax.swing.JPanel {
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabelSaludo;
     private javax.swing.JPanel jPanel1;
     // End of variables declaration//GEN-END:variables

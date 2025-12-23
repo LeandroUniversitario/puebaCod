@@ -4,12 +4,13 @@ import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.toedter.calendar.JDateChooser;
 import java.awt.Desktop;
+import java.awt.Dimension;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.sql.*;
 import javax.swing.*;
 
-public class PanelReportes extends javax.swing.JPanel {
+public class PanelReportes extends PanelDegradado {
 
     private Connection conexion;
 
@@ -20,8 +21,11 @@ public class PanelReportes extends javax.swing.JPanel {
 
     public PanelReportes(Connection conexion) {
         this.conexion = conexion;
+           setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+        setPreferredSize(new Dimension(640, 500));
+
         initComponents();
-        
+     
         // === REPORTE DE BOLETA DE PAGO ===
         JButton btnBoleta = crearBoton("💳 Generar Boleta de Pago");
         btnBoleta.addActionListener(evt -> generarBoletaPago());
@@ -33,9 +37,9 @@ public class PanelReportes extends javax.swing.JPanel {
 // BOLETA DE PAGO INDIVIDUAL
 // ======================================================
     private void generarBoletaPago() {
-        String idPago = JOptionPane.showInputDialog(this, "Ingrese el ID del pago (Ej: P001):");
+
+        String idPago = JOptionPane.showInputDialog(this, "Ingrese el ID del pago:");
         if (idPago == null || idPago.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar un ID de pago válido.");
             return;
         }
 
@@ -43,14 +47,18 @@ public class PanelReportes extends javax.swing.JPanel {
         String ruta = crearRuta("boleta_pago_" + idPago + ".pdf");
 
         try {
-            // 1️⃣ Obtener datos del pago, alquiler y cliente
+
             String sql = """
-            SELECT p.idPago, p.fechaPago, p.monto AS montoSinIgv, p.igv, p.montoConIGV,
-                   p.metodoPago, p.estado,
-                   a.idAlquiler, t.nombre, t.apellidos, t.dni
+            SELECT 
+                p.idPago, p.fechaPago, p.monto, p.igv, p.montoConIGV,
+                p.metodoPago, p.estado,
+                a.idAlquiler, a.total, a.idPromocion,
+                t.nombre, t.apellidos, t.dni,
+                pr.descripcion AS promoDescripcion
             FROM Pago p
             JOIN Alquiler a ON p.idAlquiler = a.idAlquiler
             JOIN Turista t ON a.idTurista = t.idTurista
+            LEFT JOIN Promocion pr ON a.idPromocion = pr.idPromocion
             WHERE p.idPago = ?
         """;
 
@@ -59,96 +67,109 @@ public class PanelReportes extends javax.swing.JPanel {
             ResultSet rs = ps.executeQuery();
 
             if (!rs.next()) {
-                JOptionPane.showMessageDialog(this, "❌ No se encontró el pago con ID: " + idPago);
+                JOptionPane.showMessageDialog(this, "Pago no encontrado");
                 return;
             }
 
-            // 2️⃣ Extraer datos necesarios
-            double montoSinIgv = rs.getDouble("montoSinIgv");
-            double igvPorcentaje = rs.getDouble("igv");
-            double montoConIgv = rs.getDouble("montoConIGV");
+            double totalConDescuento = rs.getDouble("total");
+            double igv = rs.getDouble("igv");
+            double totalConIGV = rs.getDouble("montoConIGV");
 
-            double igvSoles = Math.round(montoSinIgv * igvPorcentaje * 100.0) / 100.0;
+            boolean tienePromo = rs.getString("idPromocion") != null;
+            double porcentajeDescuento = extraerPorcentaje(rs.getString("promoDescripcion"));
 
-            montoSinIgv = Math.round(montoSinIgv * 100.0) / 100.0;
-            montoConIgv = Math.round(montoConIgv * 100.0) / 100.0;
+            double montoBase = tienePromo
+                    ? totalConDescuento / (1 - porcentajeDescuento)
+                    : totalConDescuento;
 
-            // 3️⃣ Crear documento PDF
-            Document doc = new Document(PageSize.A5);
+            double descuento = montoBase - totalConDescuento;
+            double igvSoles = totalConDescuento * igv;
+
+            // ================= PDF =================
+            Document doc = new Document(new Rectangle(230, 700), 10, 10, 10, 10);
             PdfWriter.getInstance(doc, new FileOutputStream(ruta));
             doc.open();
 
-            // Encabezado
-            Paragraph titulo = new Paragraph("BOLETA DE PAGO", new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD));
-            titulo.setAlignment(Element.ALIGN_CENTER);
-            doc.add(titulo);
+            Font fN = new Font(Font.FontFamily.HELVETICA, 8);
+            Font fB = new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD);
 
-            doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("Alquileres Turísticos del Norte - Piura"));
-            doc.add(new Paragraph("RUC: 20457896543"));
-            doc.add(new Paragraph("Dirección: Av. Grau 1234, Piura"));
-            doc.add(new Paragraph("Teléfono: (073) 451234"));
-            doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("--------------------------------------------------------------"));
-            doc.add(new Paragraph(" "));
+            Paragraph p;
 
-            // 4️⃣ Datos del Cliente (SIN ID TURISTA)
-            doc.add(new Paragraph("CLIENTE:", new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
-            doc.add(new Paragraph("Nombre: " + rs.getString("nombre") + " " + rs.getString("apellidos")));
-            doc.add(new Paragraph("DNI: " + rs.getString("dni")));
-            doc.add(new Paragraph("ID Alquiler: " + rs.getString("idAlquiler")));
-            doc.add(new Paragraph("ID Pago: " + rs.getString("idPago")));
-            doc.add(new Paragraph("Fecha de Pago: " + rs.getDate("fechaPago")));
-            doc.add(new Paragraph("Método de Pago: " + rs.getString("metodoPago")));
-            doc.add(new Paragraph("Estado: " + rs.getString("estado")));
-            doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("--------------------------------------------------------------"));
-            doc.add(new Paragraph(" "));
+            p = new Paragraph("ALQUILERES TURISTICOS DEL NORTE\n", fB);
+            p.setAlignment(Element.ALIGN_CENTER);
+            doc.add(p);
 
-            // 5️⃣ DETALLES DEL ALQUILER
-            doc.add(new Paragraph("DETALLE DEL ALQUILER", new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
-            doc.add(new Paragraph(" "));
+            doc.add(new Paragraph("RUC 20457896543\nPiura - Perú\n", fN));
+            doc.add(new Paragraph("--------------------------------", fN));
 
-// Consulta CORREGIDA (usa tarifaHora de Recursos)
-            String sqlDetalles = """
-    SELECT r.tipo, r.tarifaHora AS precioHora, d.horasUsadas, d.subTotal
-    FROM DetalleAlquiler d
-    JOIN Recursos r ON d.idRecurso = r.idRecursos
-    WHERE d.idAlquiler = ?
-""";
+            doc.add(new Paragraph("BOLETA ELECTRÓNICA", fB));
+            doc.add(new Paragraph("Pago: " + rs.getString("idPago"), fN));
+            doc.add(new Paragraph("Fecha: " + rs.getDate("fechaPago"), fN));
+            doc.add(new Paragraph("--------------------------------", fN));
 
-            PreparedStatement psDet = conexion.prepareStatement(sqlDetalles);
+            doc.add(new Paragraph("CLIENTE", fB));
+            doc.add(new Paragraph(rs.getString("nombre") + " " + rs.getString("apellidos"), fN));
+            doc.add(new Paragraph("DNI: " + rs.getString("dni"), fN));
+            doc.add(new Paragraph("--------------------------------", fN));
+
+            doc.add(new Paragraph("DETALLE DEL ALQUILER", fB));
+
+            String sqlDet = """
+            SELECT r.tipo, d.horasUsadas, d.subTotal
+            FROM DetalleAlquiler d
+            JOIN Recursos r ON d.idRecurso = r.idRecursos
+            WHERE d.idAlquiler = ?
+        """;
+
+            PreparedStatement psDet = conexion.prepareStatement(sqlDet);
             psDet.setString(1, rs.getString("idAlquiler"));
-            ResultSet rsDet = psDet.executeQuery();
+            ResultSet rd = psDet.executeQuery();
 
-            while (rsDet.next()) {
-                doc.add(new Paragraph("Recurso: " + rsDet.getString("tipo")));
-                doc.add(new Paragraph("  Precio/Hora: S/ " + rsDet.getDouble("precioHora")));
-                doc.add(new Paragraph("  Horas usadas: " + rsDet.getInt("horasUsadas")));
-                doc.add(new Paragraph("  Subtotal: S/ " + String.format("%.2f", rsDet.getDouble("subTotal"))));
-                doc.add(new Paragraph(" "));
+            while (rd.next()) {
+                doc.add(new Paragraph(
+                        rd.getString("tipo") + "  "
+                        + rd.getInt("horasUsadas") + "h  S/ "
+                        + String.format("%.2f", rd.getDouble("subTotal")),
+                        fN
+                ));
             }
 
-            doc.add(new Paragraph("--------------------------------------------------------------"));
-            doc.add(new Paragraph(" "));
-            // 6️⃣ Totales
-            doc.add(new Paragraph("RESUMEN DE PAGO", new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
-            doc.add(new Paragraph("Monto sin IGV: S/ " + String.format("%.2f", montoSinIgv)));
-            doc.add(new Paragraph("IGV (18%): S/ " + String.format("%.2f", igvSoles)));
-            doc.add(new Paragraph("TOTAL A PAGAR: S/ " + String.format("%.2f", montoConIgv),
-                    new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD)));
+            doc.add(new Paragraph("--------------------------------", fN));
+            doc.add(new Paragraph("OP. GRAVADA: S/ " + String.format("%.2f", montoBase), fN));
 
-            doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("¡Gracias por su preferencia!",
-                    new Font(Font.FontFamily.HELVETICA, 12, Font.ITALIC)));
+            if (tienePromo) {
+                doc.add(new Paragraph(
+                        "DESCUENTO (" + rs.getString("promoDescripcion") + "): -S/ "
+                        + String.format("%.2f", descuento),
+                        fN
+                ));
+            }
+
+            doc.add(new Paragraph("IGV (18%): S/ " + String.format("%.2f", igvSoles), fN));
+            doc.add(new Paragraph("--------------------------------", fN));
+            doc.add(new Paragraph("TOTAL A PAGAR: S/ " + String.format("%.2f", totalConIGV), fB));
+
+            doc.add(new Paragraph("\nGRACIAS POR SU PREFERENCIA", fB));
 
             doc.close();
             abrirPDF(ruta);
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al generar boleta: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
     }
+
+    private double extraerPorcentaje(String texto) {
+        if (texto == null) {
+            return 0.0;
+        }
+        texto = texto.replaceAll("[^0-9]", "");
+        if (texto.isEmpty()) {
+            return 0.0;
+        }
+        return Double.parseDouble(texto) / 100.0;
+    }
+
 
 
     private void initComponents() {
