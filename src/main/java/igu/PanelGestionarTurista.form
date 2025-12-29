@@ -33,10 +33,20 @@
       <Layout>
         <DimensionLayout dim="0">
           <Group type="103" groupAlignment="0" attributes="0">
-              <Group type="102" attributes="0">
+              <Group type="102" alignment="0" attributes="0">
+                  <EmptySpace min="-2" pref="33" max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="0" attributes="0">
                       <Group type="102" attributes="0">
-                          <EmptySpace min="-2" pref="33" max="-2" attributes="0"/>
+                          <Component id="btnNuevoTurista" min="-2" pref="126" max="-2" attributes="0"/>
+                          <EmptySpace type="separate" max="-2" attributes="0"/>
+                          <Component id="btnBuscarturista" min="-2" pref="134" max="-2" attributes="0"/>
+                          <EmptySpace min="-2" pref="29" max="-2" attributes="0"/>
+                          <Component id="btnEliminaTurista" min="-2" pref="137" max="-2" attributes="0"/>
+                          <EmptySpace type="separate" max="-2" attributes="0"/>
+                          <Component id="btnGuardarTurista" min="-2" pref="122" max="-2" attributes="0"/>
+                          <EmptySpace pref="23" max="32767" attributes="0"/>
+                      </Group>
+                      <Group type="102" attributes="0">
                           <Group type="103" groupAlignment="0" attributes="0">
                               <Component id="jLabel1" min="-2" pref="268" max="-2" attributes="0"/>
                               <Group type="102" alignment="0" attributes="0">
@@ -64,26 +74,12 @@
                                       <Component id="txtNacionalidad" alignment="1" min="-2" pref="391" max="-2" attributes="0"/>
                                   </Group>
                               </Group>
+                              <Component id="btnEditarTurista" alignment="0" min="-2" pref="126" max="-2" attributes="0"/>
+                              <Component id="btnImportar" alignment="0" min="-2" pref="151" max="-2" attributes="0"/>
                           </Group>
-                      </Group>
-                      <Group type="102" alignment="0" attributes="0">
-                          <EmptySpace min="-2" pref="45" max="-2" attributes="0"/>
-                          <Component id="btnNuevoTurista" min="-2" pref="74" max="-2" attributes="0"/>
-                          <EmptySpace min="-2" pref="19" max="-2" attributes="0"/>
-                          <Component id="btnBuscarturista" min="-2" pref="87" max="-2" attributes="0"/>
-                          <EmptySpace type="separate" max="-2" attributes="0"/>
-                          <Component id="btnEditarTurista" min="-2" pref="85" max="-2" attributes="0"/>
-                          <EmptySpace type="separate" max="-2" attributes="0"/>
-                          <Component id="btnEliminaTurista" min="-2" pref="81" max="-2" attributes="0"/>
-                          <EmptySpace min="-2" pref="29" max="-2" attributes="0"/>
-                          <Component id="btnGuardarTurista" min="-2" pref="89" max="-2" attributes="0"/>
-                      </Group>
-                      <Group type="102" alignment="0" attributes="0">
-                          <EmptySpace min="-2" pref="21" max="-2" attributes="0"/>
-                          <Component id="btnImportar" min="-2" pref="82" max="-2" attributes="0"/>
+                          <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
                       </Group>
                   </Group>
-                  <EmptySpace pref="95" max="32767" attributes="0"/>
               </Group>
           </Group>
         </DimensionLayout>
@@ -117,17 +113,18 @@
                       <Component id="txtContacto" alignment="3" min="-2" max="-2" attributes="0"/>
                       <Component id="lblContacto" alignment="3" min="-2" max="-2" attributes="0"/>
                   </Group>
-                  <EmptySpace min="-2" pref="52" max="-2" attributes="0"/>
+                  <EmptySpace pref="60" max="32767" attributes="0"/>
                   <Group type="103" groupAlignment="3" attributes="0">
                       <Component id="btnNuevoTurista" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="btnBuscarturista" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="btnEditarTurista" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="btnBuscarturista" alignment="3" max="32767" attributes="0"/>
                       <Component id="btnEliminaTurista" alignment="3" min="-2" max="-2" attributes="0"/>
                       <Component id="btnGuardarTurista" alignment="3" min="-2" max="-2" attributes="0"/>
                   </Group>
-                  <EmptySpace min="-2" pref="90" max="-2" attributes="0"/>
+                  <EmptySpace type="separate" max="-2" attributes="0"/>
+                  <Component id="btnEditarTurista" min="-2" max="-2" attributes="0"/>
+                  <EmptySpace min="-2" pref="46" max="-2" attributes="0"/>
                   <Component id="btnImportar" min="-2" max="-2" attributes="0"/>
-                  <EmptySpace min="-2" pref="69" max="-2" attributes="0"/>
+                  <EmptySpace min="-2" pref="79" max="-2" attributes="0"/>
               </Group>
           </Group>
         </DimensionLayout>
@@ -144,7 +141,7 @@
         </Component>
         <Component class="javax.swing.JButton" name="btnNuevoTurista">
           <Properties>
-            <Property name="text" type="java.lang.String" value="nuevo"/>
+            <Property name="text" type="java.lang.String" value="Nuevo"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnNuevoTuristaActionPerformed"/>
@@ -152,7 +149,7 @@
         </Component>
         <Component class="javax.swing.JButton" name="btnBuscarturista">
           <Properties>
-            <Property name="text" type="java.lang.String" value="buscar"/>
+            <Property name="text" type="java.lang.String" value="Buscar"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnBuscarturistaActionPerformed"/>
@@ -160,7 +157,7 @@
         </Component>
         <Component class="javax.swing.JButton" name="btnEditarTurista">
           <Properties>
-            <Property name="text" type="java.lang.String" value="editar"/>
+            <Property name="text" type="java.lang.String" value="Editar"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnEditarTuristaActionPerformed"/>
@@ -171,7 +168,7 @@
             <Property name="background" type="java.awt.Color" editor="org.netbeans.beaninfo.editors.ColorEditor">
               <Color blue="33" green="33" red="ff" type="rgb"/>
             </Property>
-            <Property name="text" type="java.lang.String" value="eliminar"/>
+            <Property name="text" type="java.lang.String" value="Eliminar"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnEliminaTuristaActionPerformed"/>
@@ -182,7 +179,7 @@
             <Property name="background" type="java.awt.Color" editor="org.netbeans.beaninfo.editors.ColorEditor">
               <Color blue="33" green="ff" red="33" type="rgb"/>
             </Property>
-            <Property name="text" type="java.lang.String" value="guardar"/>
+            <Property name="text" type="java.lang.String" value="Guardar"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnGuardarTuristaActionPerformed"/>
@@ -227,7 +224,7 @@
             <Property name="foreground" type="java.awt.Color" editor="org.netbeans.beaninfo.editors.ColorEditor">
               <Color blue="0" green="0" red="0" type="rgb"/>
             </Property>
-            <Property name="text" type="java.lang.String" value="nacionalidad"/>
+            <Property name="text" type="java.lang.String" value="Nacionalidad"/>
           </Properties>
         </Component>
         <Component class="javax.swing.JLabel" name="lblContacto">
@@ -235,7 +232,7 @@
             <Property name="foreground" type="java.awt.Color" editor="org.netbeans.beaninfo.editors.ColorEditor">
               <Color blue="0" green="0" red="0" type="rgb"/>
             </Property>
-            <Property name="text" type="java.lang.String" value="contacto"/>
+            <Property name="text" type="java.lang.String" value="Contacto"/>
           </Properties>
         </Component>
         <Component class="javax.swing.JTextField" name="txtApellidos">

@@ -5,6 +5,8 @@
 package igu;
 
 import java.awt.Color;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -25,76 +27,134 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     private LoginVentana ventana;
     private Connection conexion;
     Color brillo = new Color(255, 255, 255, 40);
+    // --- AGREGA ESTA VARIABLE AQUÍ ---
+    private javax.swing.JButton botonSeleccionado = null; 
+    // ---------------------------------
 
     public MenuPrincipalV(String usuario, String nivel, Connection conexion) {
 
         initComponents();
-        PanelEntrada p = new PanelEntrada(usuario);
-        showPanel(p);
-        this.conexion = conexion;
-        ventana = new LoginVentana();
-        setLocationRelativeTo(null);
-        this.nivelUsuario = nivel;
-        this.usuarioActual = usuario;
+      
+    this.conexion = conexion;
+    this.usuarioActual = usuario;
+    this.nivelUsuario = nivel;
 
+    // 2. Configuración de ventana
+    setLocationRelativeTo(null);
+    
+    // 3. Cargar panel inicial
+    PanelEntrada p = new PanelEntrada(usuario);
+    showPanel(p);
+
+    // 4. Aplicar estilos visuales
+    personalizarBotones();
+    
+    // 5. SOLUCIÓN AL LAG (Pantalla Blanca):
+    // Hacemos la consulta a la BD AL FINAL, después de que todo lo visual esté listo.
+    // Incluso mejor, forzamos que se haga después de mostrar la ventana.
+    java.awt.EventQueue.invokeLater(() -> {
+        this.setVisible(true); // Mostramos la ventana primero
+        // Ahora sí, consultamos la BD (El usuario ya ve la interfaz cargada)
         this.idUsuario = obtenerIdUsuarioDesdeBD(usuario);
-        personalizarBotones();
+        System.out.println("ID Usuario cargado: " + this.idUsuario);
+    });
+    marcarBotonComoActivo(btnInicio);
     }
-  
-    private void aplicarEfectoHover(JButton boton) {
-        boton.setFocusPainted(false);
-        boton.setContentAreaFilled(false);
-        boton.setOpaque(true);
-        boton.setBackground(new java.awt.Color(51, 153, 255));
-        boton.setForeground(Color.WHITE);
 
-        boton.addMouseListener(new java.awt.event.MouseAdapter() {
+    private void aplicarEfectoHover(JButton boton) {
+        boton.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                boton.setBackground(new java.awt.Color(30, 120, 200));
+            public void mouseEntered(MouseEvent e) {
+                // Si el botón NO es el que ya está seleccionado (para no quitarle su color Cyan)
+                if (boton != botonSeleccionado) {
+                    // 1. Cambiamos el borde a BLANCO (o Amarillo si prefieres)
+                    boton.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                            new javax.swing.border.LineBorder(Color.WHITE, 1),
+                            javax.swing.BorderFactory.createEmptyBorder(5, 15, 5, 0)
+                    ));
+                    // 2. Opcional: Cambiar letra
+                    // boton.setForeground(Color.YELLOW);
+                }
+                boton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
             }
 
             @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                boton.setBackground(new java.awt.Color(51, 153, 255));
+            public void mouseExited(MouseEvent e) {
+                // Si NO es el seleccionado, volvemos al estado invisible
+                if (boton != botonSeleccionado) {
+                    boton.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                            new javax.swing.border.LineBorder(new Color(0, 0, 0, 0), 1), // Volver a transparente
+                            javax.swing.BorderFactory.createEmptyBorder(5, 15, 5, 0)
+                    ));
+                    boton.setForeground(Color.WHITE);
+                }
             }
         });
     }
+    private void marcarBotonComoActivo(JButton boton) {
+        // 1. Limpiar el anterior (si existe)
+        if (botonSeleccionado != null) {
+            // Le ponemos el borde transparente de nuevo
+            botonSeleccionado.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                    new javax.swing.border.LineBorder(new Color(0, 0, 0, 0), 1),
+                    javax.swing.BorderFactory.createEmptyBorder(5, 15, 5, 0)
+            ));
+            botonSeleccionado.setForeground(Color.WHITE);
+        }
 
-    
-    private void personalizarBotones() {
-    
-        btnInicio.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        btnInicio.setText("🏠 INICIO");
+        // 2. Nuevo botón seleccionado
+        botonSeleccionado = boton;
 
-        btnMantenimiento.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        btnMantenimiento.setText("🛠️ MANTENIMIENTO");
-
-        btnAlquileres.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        btnAlquileres.setText("🚗 ALQUILERES");
-
-        jButton1.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        jButton1.setText("💰 PAGOS");
-
-        //btnConsultas.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        //btnConsultas.setText("🔍 CONSULTAS");
-
-        btnReporte.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        btnReporte.setText("📊 REPORTES");
-
-        btnCerrarSesion.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13));
-        btnCerrarSesion.setText("🚪 CERRAR SESIÓN");
-
-        aplicarEfectoHover(btnInicio);
-        aplicarEfectoHover(btnMantenimiento);
-        aplicarEfectoHover(btnAlquileres);
-        aplicarEfectoHover(jButton1);
-       // aplicarEfectoHover(btnConsultas);
-        aplicarEfectoHover(btnReporte);
-
+        // 3. Le ponemos borde CIAN (Celeste) fijo
+        botonSeleccionado.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                new javax.swing.border.LineBorder(new Color(0, 255, 255), 1),
+                javax.swing.BorderFactory.createEmptyBorder(5, 15, 5, 0)
+        ));
+        botonSeleccionado.setForeground(new Color(0, 255, 255)); // Letra también celeste
     }
 
- 
+    private void personalizarBotones() {
+        java.awt.Font fuenteMenu = new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 14);
+
+        JButton[] botones = {btnInicio, btnMantenimiento, btnAlquileres, btnPagos, btnReporte, btnCerrarSesion};
+
+        for (JButton btn : botones) {
+            btn.setFont(fuenteMenu);
+            btn.setForeground(Color.WHITE);
+            btn.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+
+            // --- TRUCO DEL BORDE INVISIBLE ---
+            // Creamos un borde compuesto: 
+            // 1. Línea exterior (1 pixel) transparente (new Color(0,0,0,0))
+            // 2. Margen interior (EmptyBorder) para separar el texto
+            javax.swing.border.Border bordeInvisible = javax.swing.BorderFactory.createCompoundBorder(
+                    new javax.swing.border.LineBorder(new Color(0, 0, 0, 0), 1), // Transparente
+                    javax.swing.BorderFactory.createEmptyBorder(5, 15, 5, 0) // Margen
+            );
+            btn.setBorder(bordeInvisible);
+
+            // --- CONFIGURACIÓN "CERO LAG" ---
+            btn.setContentAreaFilled(false); // IMPORTANTE: Nunca pintar fondo
+            btn.setBorderPainted(true);      // IMPORTANTE: Permitir pintar el borde (aunque sea transparente al inicio)
+            btn.setFocusPainted(false);
+            btn.setOpaque(false);
+
+            aplicarEfectoHover(btn);
+        }
+
+        // Textos...
+        btnInicio.setText("🏠   INICIO");
+        btnMantenimiento.setText("🛠️ MANTENIMIENTO");
+        btnAlquileres.setText("🚗   ALQUILERES");
+        btnPagos.setText("💰   PAGOS");
+        btnReporte.setText("📊   REPORTES");
+        btnCerrarSesion.setText("🚪   CERRAR SESIÓN");
+
+        // Marcar inicio por defecto
+        marcarBotonComoActivo(btnInicio);
+    }
+
+
     private String obtenerIdUsuarioDesdeBD(String nombreUsuario) {
         String id = null;
         try {
@@ -125,7 +185,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     private void initComponents() {
 
         PaneldeInicio = new javax.swing.JPanel();
-        jPanel1 = new javax.swing.JPanel();
+        jPanel1 = new igu.PanelMenuDegradado();
         btnInicio = new javax.swing.JButton();
         btnCerrarSesion = new javax.swing.JButton();
         jSeparator2 = new javax.swing.JSeparator();
@@ -135,7 +195,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         btnReporte = new javax.swing.JButton();
         jSeparator5 = new javax.swing.JSeparator();
         btnAlquileres = new javax.swing.JButton();
-        jButton1 = new javax.swing.JButton();
+        btnPagos = new javax.swing.JButton();
         jSeparator6 = new javax.swing.JSeparator();
         jSeparator7 = new javax.swing.JSeparator();
         PanelOriginal = new javax.swing.JPanel();
@@ -149,7 +209,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         jPanel1.setBackground(new java.awt.Color(51, 153, 255));
         jPanel1.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
-        btnInicio.setForeground(new java.awt.Color(0, 0, 0));
+        btnInicio.setForeground(new java.awt.Color(255, 255, 255));
         btnInicio.setText("INICIO");
         btnInicio.setBorder(null);
         btnInicio.setContentAreaFilled(false);
@@ -175,7 +235,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         jPanel1.add(jSeparator2, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 477, 158, 13));
 
         btnMantenimiento.setBackground(new java.awt.Color(204, 204, 0));
-        btnMantenimiento.setForeground(new java.awt.Color(0, 0, 0));
+        btnMantenimiento.setForeground(new java.awt.Color(255, 255, 255));
         btnMantenimiento.setText(" MANTENIMIENTO");
         btnMantenimiento.setBorder(null);
         btnMantenimiento.setContentAreaFilled(false);
@@ -200,7 +260,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         jPanel1.add(jSeparator3, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 142, 158, 10));
         jPanel1.add(jSeparator4, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 74, 158, 10));
 
-        btnReporte.setForeground(new java.awt.Color(0, 0, 0));
+        btnReporte.setForeground(new java.awt.Color(255, 255, 255));
         btnReporte.setText("REPORTES");
         btnReporte.setBorder(null);
         btnReporte.setContentAreaFilled(false);
@@ -213,7 +273,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         jPanel1.add(btnReporte, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 362, 158, 56));
         jPanel1.add(jSeparator5, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 422, 158, 10));
 
-        btnAlquileres.setForeground(new java.awt.Color(0, 0, 0));
+        btnAlquileres.setForeground(new java.awt.Color(255, 255, 255));
         btnAlquileres.setText("ALQUILERES");
         btnAlquileres.setBorder(null);
         btnAlquileres.setContentAreaFilled(false);
@@ -225,17 +285,17 @@ public class MenuPrincipalV extends javax.swing.JFrame {
         });
         jPanel1.add(btnAlquileres, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 158, 158, 44));
 
-        jButton1.setForeground(new java.awt.Color(0, 0, 0));
-        jButton1.setText("PAGOS");
-        jButton1.setBorder(null);
-        jButton1.setContentAreaFilled(false);
-        jButton1.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
+        btnPagos.setForeground(new java.awt.Color(255, 255, 255));
+        btnPagos.setText("PAGOS");
+        btnPagos.setBorder(null);
+        btnPagos.setContentAreaFilled(false);
+        btnPagos.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btnPagos.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
+                btnPagosActionPerformed(evt);
             }
         });
-        jPanel1.add(jButton1, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 223, 158, 40));
+        jPanel1.add(btnPagos, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 223, 158, 40));
         jPanel1.add(jSeparator6, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 269, 158, 10));
         jPanel1.add(jSeparator7, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 208, 158, 10));
 
@@ -273,6 +333,7 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     private void btnMantenimientoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMantenimientoActionPerformed
         PanelMantenimiento p1= new PanelMantenimiento(conexion,usuarioActual,nivelUsuario);
         showPanel(p1);
+        marcarBotonComoActivo(btnMantenimiento);
     }//GEN-LAST:event_btnMantenimientoActionPerformed
 
     private void btnMantenimientoMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnMantenimientoMousePressed
@@ -290,9 +351,22 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     private void btnCerrarSesionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCerrarSesionActionPerformed
 
         int confirm = JOptionPane.showConfirmDialog(this, "¿Deseas cerrar sesión?", "Confirmación", JOptionPane.YES_NO_OPTION);
-        if (confirm == JOptionPane.YES_OPTION) {
 
-            ventana.setVisible(true);
+        if (confirm == JOptionPane.YES_OPTION) {
+            try {
+                // 1. Cerramos la conexión actual para liberar al servidor
+                if (this.conexion != null && !this.conexion.isClosed()) {
+                    this.conexion.close();
+                }
+            } catch (SQLException ex) {
+                System.out.println("Error al cerrar la conexión: " + ex.getMessage());
+            }
+
+            // 2. Abrimos el Login nuevo (que creará su propia conexión fresca)
+            LoginVentana login = new LoginVentana();
+            login.setVisible(true);
+
+            // 3. Matamos el menú
             this.dispose();
         }
 
@@ -301,22 +375,26 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     private void btnInicioActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnInicioActionPerformed
         PanelEntrada p= new PanelEntrada(usuarioActual);
         showPanel(p);
+        marcarBotonComoActivo(btnInicio);
     }//GEN-LAST:event_btnInicioActionPerformed
 
     private void btnReporteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnReporteActionPerformed
        PanelReportes p= new PanelReportes(conexion);
         showPanel(p);
+        marcarBotonComoActivo(btnReporte);
     }//GEN-LAST:event_btnReporteActionPerformed
 
     private void btnAlquileresActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAlquileresActionPerformed
         PanelAlquiler p = new PanelAlquiler(conexion,idUsuario);
         showPanel(p);
+        marcarBotonComoActivo(btnAlquileres);
     }//GEN-LAST:event_btnAlquileresActionPerformed
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+    private void btnPagosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPagosActionPerformed
         PanelPagos p = new PanelPagos(conexion,idUsuario);
         showPanel(p);
-    }//GEN-LAST:event_jButton1ActionPerformed
+        marcarBotonComoActivo(btnPagos);
+    }//GEN-LAST:event_btnPagosActionPerformed
      void showPanel(JPanel p){
         p.setSize(640, 500);
         p.setLocation(0, 0);
@@ -339,8 +417,8 @@ public class MenuPrincipalV extends javax.swing.JFrame {
     private javax.swing.JButton btnCerrarSesion;
     private javax.swing.JButton btnInicio;
     private javax.swing.JButton btnMantenimiento;
+    private javax.swing.JButton btnPagos;
     private javax.swing.JButton btnReporte;
-    private javax.swing.JButton jButton1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JSeparator jSeparator3;

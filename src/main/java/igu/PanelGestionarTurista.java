@@ -4,6 +4,7 @@
  */
 package igu;
 
+import java.awt.BorderLayout;
 import java.awt.List;
 import java.sql.Connection;
 // Para el diálogo de selección de archivo
@@ -55,13 +56,165 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         txtNacionalidad.setText("");
         txtContacto.setText("");
     }
+    
+    private void corregirDistribucion() {
+        jPanel1.setLayout(null);
+        // 1. EL TÍTULO (Arriba y centrado)
+        // setBounds(x, y, ancho, alto)
+        jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel1.setBounds(0, 20, 640, 40);
+
+        // 2. CONFIGURACIÓN DE FILAS (Compactamos el espacio vertical)
+        int xLabel = 40;       // Donde empiezan las etiquetas
+        int xTxt = 150;        // Donde empiezan las cajas
+        int anchoTxt = 430;    // Cajas bien anchas
+        int alto = 30;         // Altura estándar
+        int inicioY = 80;      // Empezamos más arriba para ganar espacio
+        int separacion = 45;   // Espacio entre cada renglón
+
+        // Fila 1: Nombre
+        lblNombre.setBounds(xLabel, inicioY, 100, alto);
+        txtNombre.setBounds(xTxt, inicioY, anchoTxt, alto);
+
+        // Fila 2: Apellidos
+        lblApellidos.setBounds(xLabel, inicioY + separacion, 100, alto);
+        txtApellidos.setBounds(xTxt, inicioY + separacion, anchoTxt, alto);
+
+        // Fila 3: DNI
+        lblDni.setBounds(xLabel, inicioY + (separacion * 2), 100, alto);
+        txtDni.setBounds(xTxt, inicioY + (separacion * 2), anchoTxt, alto);
+
+        // Fila 4: Nacionalidad
+        lblNacionalidad.setBounds(xLabel, inicioY + (separacion * 3), 100, alto);
+        txtNacionalidad.setBounds(xTxt, inicioY + (separacion * 3), anchoTxt, alto);
+
+        // Fila 5: Contacto
+        lblContacto.setBounds(xLabel, inicioY + (separacion * 4), 100, alto);
+        txtContacto.setBounds(xTxt, inicioY + (separacion * 4), anchoTxt, alto);
+
+        // 3. LOS BOTONES (Todos en una sola fila ordenada)
+        int yBotones = 330; // Altura perfecta debajo del formulario
+        int anchoBtn = 100;
+        int altoBtn = 35;
+        int gap = 15; // Espacio entre botones
+        int xBtn = 30; // Margen izquierdo inicial
+
+        // Calculamos la posición de cada uno sumando el ancho + gap
+        btnNuevoTurista.setBounds(xBtn, yBotones, anchoBtn, altoBtn);
+
+        xBtn += anchoBtn + gap;
+        btnBuscarturista.setBounds(xBtn, yBotones, anchoBtn, altoBtn);
+
+        xBtn += anchoBtn + gap;
+        btnEditarTurista.setBounds(xBtn, yBotones, anchoBtn, altoBtn);
+
+        xBtn += anchoBtn + gap;
+        btnEliminaTurista.setBounds(xBtn, yBotones, anchoBtn, altoBtn);
+
+        xBtn += anchoBtn + gap;
+        btnGuardarTurista.setBounds(xBtn, yBotones, anchoBtn, altoBtn);
+
+        // 4. EL BOTÓN IMPORTAR (Abajo, separado)
+        btnImportar.setBounds(30, 400, 160, 35);
+    }
+    
     public PanelGestionarTurista(Connection conexion,String nivel) {
         this.conexion= conexion;
         initComponents();
+        
         habilitarCampos(false);
         this.nivel=nivel;
+         
+        PanelDegradado fondo = new PanelDegradado();
+
+        // MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
+        fondo.setLayout(new java.awt.BorderLayout());
+
+        // Pasar jPanel1 dentro del panel degradado
+        jPanel1.setOpaque(false);
+        fondo.add(jPanel1, BorderLayout.CENTER);
+
+        // Ahora reemplazas en el contenedor padre
+        remove(jPanel1);
+        add(fondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
+
+        // refrescar
+        revalidate();
+        repaint();
+        aplicarEstilosModernos();
+        corregirDistribucion();
+    }
+    private void aplicarEstilosModernos() {
+        // COLORES Y FUENTES
+        java.awt.Color colorTextoOscuro = new java.awt.Color(31, 78, 95); // Azul Petróleo
+        java.awt.Font fuenteTitulo = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 24);
+        java.awt.Font fuenteNormal = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 14);
+
+        // 1. TÍTULO
+        jLabel1.setFont(fuenteTitulo);
+        jLabel1.setForeground(colorTextoOscuro);
+        jLabel1.setText("GESTIÓN DE TURISTAS");
+
+        // 2. LABELS (Etiquetas)
+        javax.swing.JLabel[] labels = {lblNombre, lblApellidos, lblDni, lblNacionalidad, lblContacto};
+        for (javax.swing.JLabel lbl : labels) {
+            lbl.setFont(fuenteNormal);
+            lbl.setForeground(colorTextoOscuro);
+        }
+
+        // 3. BOTONES (Estilo Glass)
+        javax.swing.JButton[] botones = {btnNuevoTurista, btnBuscarturista, btnEditarTurista, btnEliminaTurista, btnGuardarTurista, btnImportar};
+
+        for (javax.swing.JButton btn : botones) {
+            estilizarBoton(btn);
+        }
+        // --- AQUÍ ES DONDE PONES LOS ICONOS (EMOJIS) ---
+        btnNuevoTurista.setText("📄 Nuevo");
+        btnBuscarturista.setText("🔍 Buscar");
+        btnEditarTurista.setText("✏️ Editar");
+        btnEliminaTurista.setText("🗑️ Eliminar");
+        btnGuardarTurista.setText("💾 Guardar");
+        btnImportar.setText("📂 Importar Excel");
+       
     }
 
+    private void estilizarBoton(javax.swing.JButton btn) {
+        // 1. FUENTE CORRECTA PARA EMOJIS
+        // Usamos "Segoe UI Emoji" para asegurar que se vean los iconos a color
+        btn.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.BOLD, 12));
+
+        // Resto del código igual...
+        btn.setForeground(new java.awt.Color(31, 78, 95)); // Azul oscuro
+
+        // 2. FONDO SÓLIDO
+        btn.setBackground(java.awt.Color.WHITE);
+
+        // 3. CURSOR
+        btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+
+        // 4. BORDES Y PINTADO
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(true);
+        btn.setContentAreaFilled(true);
+        btn.setOpaque(true);
+
+        // 5. BORDE DE DISEÑO
+        btn.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1),
+                javax.swing.BorderFactory.createEmptyBorder(6, 15, 6, 15)
+        ));
+
+        // 6. EFECTO HOVER
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btn.setBackground(new java.awt.Color(240, 240, 240));
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btn.setBackground(java.awt.Color.WHITE);
+            }
+        });
+    }
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -98,21 +251,21 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel1.setText("BIENVENIDO A LA GESTION DE TURISTAS");
 
-        btnNuevoTurista.setText("nuevo");
+        btnNuevoTurista.setText("Nuevo");
         btnNuevoTurista.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnNuevoTuristaActionPerformed(evt);
             }
         });
 
-        btnBuscarturista.setText("buscar");
+        btnBuscarturista.setText("Buscar");
         btnBuscarturista.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnBuscarturistaActionPerformed(evt);
             }
         });
 
-        btnEditarTurista.setText("editar");
+        btnEditarTurista.setText("Editar");
         btnEditarTurista.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnEditarTuristaActionPerformed(evt);
@@ -120,7 +273,7 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         });
 
         btnEliminaTurista.setBackground(new java.awt.Color(255, 51, 51));
-        btnEliminaTurista.setText("eliminar");
+        btnEliminaTurista.setText("Eliminar");
         btnEliminaTurista.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnEliminaTuristaActionPerformed(evt);
@@ -128,7 +281,7 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         });
 
         btnGuardarTurista.setBackground(new java.awt.Color(51, 255, 51));
-        btnGuardarTurista.setText("guardar");
+        btnGuardarTurista.setText("Guardar");
         btnGuardarTurista.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnGuardarTuristaActionPerformed(evt);
@@ -148,10 +301,10 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         txtNombre.setForeground(new java.awt.Color(0, 0, 0));
 
         lblNacionalidad.setForeground(new java.awt.Color(0, 0, 0));
-        lblNacionalidad.setText("nacionalidad");
+        lblNacionalidad.setText("Nacionalidad");
 
         lblContacto.setForeground(new java.awt.Color(0, 0, 0));
-        lblContacto.setText("contacto");
+        lblContacto.setText("Contacto");
 
         txtApellidos.setBackground(new java.awt.Color(255, 255, 255));
         txtApellidos.setForeground(new java.awt.Color(0, 0, 0));
@@ -183,9 +336,18 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
+                .addGap(33, 33, 33)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(33, 33, 33)
+                        .addComponent(btnNuevoTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(btnBuscarturista, javax.swing.GroupLayout.PREFERRED_SIZE, 134, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(29, 29, 29)
+                        .addComponent(btnEliminaTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 137, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(btnGuardarTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 122, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap(23, Short.MAX_VALUE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 268, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(jPanel1Layout.createSequentialGroup()
@@ -206,22 +368,10 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
                                     .addComponent(txtApellidos, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 391, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(txtDni, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 391, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(txtContacto, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 391, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(txtNacionalidad, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 391, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(45, 45, 45)
-                        .addComponent(btnNuevoTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(19, 19, 19)
-                        .addComponent(btnBuscarturista, javax.swing.GroupLayout.PREFERRED_SIZE, 87, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(btnEditarTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(btnEliminaTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(29, 29, 29)
-                        .addComponent(btnGuardarTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(21, 21, 21)
-                        .addComponent(btnImportar, javax.swing.GroupLayout.PREFERRED_SIZE, 82, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(95, Short.MAX_VALUE))
+                                    .addComponent(txtNacionalidad, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 391, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addComponent(btnEditarTurista, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(btnImportar, javax.swing.GroupLayout.PREFERRED_SIZE, 151, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -248,16 +398,17 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtContacto, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(lblContacto))
-                .addGap(52, 52, 52)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 60, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnNuevoTurista)
-                    .addComponent(btnBuscarturista)
-                    .addComponent(btnEditarTurista)
+                    .addComponent(btnBuscarturista, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(btnEliminaTurista)
                     .addComponent(btnGuardarTurista))
-                .addGap(90, 90, 90)
+                .addGap(18, 18, 18)
+                .addComponent(btnEditarTurista)
+                .addGap(46, 46, 46)
                 .addComponent(btnImportar)
-                .addGap(69, 69, 69))
+                .addGap(79, 79, 79))
         );
 
         add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
@@ -265,11 +416,29 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
     // 🔹 Habilita o deshabilita los campos del formulario
 
     private void habilitarCampos(boolean habilitar) {
-        txtNombre.setEditable(habilitar);
-        txtApellidos.setEditable(habilitar);
-        txtDni.setEditable(habilitar);
-        txtNacionalidad.setEditable(habilitar);
-        txtContacto.setEditable(habilitar);
+        // 1. Definimos los colores
+        // Si habilitar es TRUE (edición) -> Fondo Blanco brillante
+        // Si habilitar es FALSE (bloqueado) -> Fondo Gris Claro
+        java.awt.Color colorFondo = habilitar ? java.awt.Color.WHITE : new java.awt.Color(240, 240, 240);
+        java.awt.Color colorBorde = habilitar ? new java.awt.Color(31, 78, 95) : new java.awt.Color(200, 200, 200);
+
+        // 2. Lista de tus campos de texto
+        javax.swing.JTextField[] campos = {txtNombre, txtApellidos, txtDni, txtNacionalidad, txtContacto};
+
+        for (javax.swing.JTextField txt : campos) {
+            // A. Usamos setEditable en lugar de setEnabled
+            // Esto permite que el usuario pueda COPIAR el texto aunque no pueda editarlo (Mejor UX)
+            txt.setEditable(habilitar);
+
+            // B. Cambiamos el color de fondo para dar feedback visual
+            txt.setBackground(colorFondo);
+
+            // C. (Opcional) Cambiamos el borde para que se note más el estado
+            txt.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                    javax.swing.BorderFactory.createLineBorder(colorBorde, 1),
+                    javax.swing.BorderFactory.createEmptyBorder(6, 10, 6, 10) // Mantenemos el relleno interno
+            ));
+        }
     }
 
     private void buscarTuristaPorDni(String dniBuscado) {

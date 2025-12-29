@@ -32,31 +32,33 @@ public class PanelAlquiler extends javax.swing.JPanel {
      * Creates new form PanelAlquiler
      */
     public PanelAlquiler(Connection conexion, String idUsuario) {
+        this.conexion = conexion;
+        this.idUsuario = idUsuario;
         initComponents();
-
+        
         PanelDegradado fondo = new PanelDegradado();
 
-// MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
+        // MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
         fondo.setLayout(new java.awt.BorderLayout());
 
-// Pasar jPanel1 dentro del panel degradado
+        // Pasar jPanel1 dentro del panel degradado
         jPanel1.setOpaque(false);
         fondo.add(jPanel1, BorderLayout.CENTER);
 
-// Ahora reemplazas en el contenedor padre
+        // Ahora reemplazas en el contenedor padre
         remove(jPanel1);
         add(fondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
 
-// refrescar
+        // refrescar
         revalidate();
         repaint();
+        
         jSpinnerHorasUsadas.addChangeListener(e -> calcularSubtotalAutomatico());
-       // ocultarColumna(0);
+          // ocultarColumna(0);
         ocultarColumna(1);
        
 
-        this.conexion = conexion;
-        this.idUsuario = idUsuario;
+      
         txtIdVendedor.setText(idUsuario);
         habilitarCampos(false);
         tblDetalles.getTableHeader().setReorderingAllowed(false);
@@ -190,7 +192,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
    
     private void limpiarCampos() {
-             modoLimpiar = true;
+        modoLimpiar = true;
         txtIdAlquiler.setText("");
         txtIdTurista.setText("");
       
@@ -258,6 +260,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
     private void habilitarCampos(boolean habilitar) {
         btnAgregarRe.setEnabled(habilitar);
         btnEliminarRe.setEnabled(habilitar);
+        btnBuscarTuri.setEnabled(habilitar);
         jComboBoxRecursos.setEnabled(habilitar);
         txtIdAlquiler.setEditable(false);
         txtHoraFin.setEditable(false);
@@ -375,6 +378,12 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
         lblHora.setForeground(new java.awt.Color(0, 0, 0));
         lblHora.setText("hora inicio");
+
+        txtHora.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtHoraActionPerformed(evt);
+            }
+        });
 
         tblDetalles.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -1011,6 +1020,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
             cargarRecursos();
             btnEditar.setEnabled(true);
             btnEliminarAlquiler.setEnabled(true);
+            habilitarCampos(false);
         }
     }//GEN-LAST:event_btnBuscarAlquilerActionPerformed
 
@@ -1213,9 +1223,34 @@ public class PanelAlquiler extends javax.swing.JPanel {
                 // ✏️ Actualizar cabecera
                 String sqlUpdate = """
                 UPDATE Alquiler
-                SET idTurista=?, fechaInicio=?, horaInicio=?, Duracion=?, total=?, estado=?, idPromocion=?, idUsuario=?, horaFinal=?
-                WHERE idAlquiler=?
-            """;
+                SET
+                    idTurista = ?,
+                    fechaInicio = ?,
+                    horaInicio = ?,
+                    Duracion = ?,
+                    total = ?,
+                    estado = ?,
+                    idPromocion = ?,
+                    idUsuario = ?,
+                    horaFinal = ?,
+
+                    horaFinalReal = CASE
+                        WHEN ? = 'FINALIZADO' AND horaFinalReal IS NULL
+                        THEN CAST(GETDATE() AS TIME)
+                        ELSE horaFinalReal
+                    END,
+
+                    mora = CASE
+                       WHEN ? = 'FINALIZADO'
+                                AND horaFinalReal IS NULL
+                                AND CAST(GETDATE() AS TIME) > horaFinal
+                                AND DATEDIFF(MINUTE, horaFinal, CAST(GETDATE() AS TIME)) > 10
+                           THEN
+                               (DATEDIFF(MINUTE, horaFinal, CAST(GETDATE() AS TIME)) - 10) * 2
+                           ELSE mora
+                    END
+                WHERE idAlquiler = ?
+                """;
                 try (PreparedStatement ps = conexion.prepareStatement(sqlUpdate)) {
                     ps.setString(1, idTurista);
                     ps.setDate(2, fechaInicio);
@@ -1226,7 +1261,13 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     ps.setString(7, idPromocion);
                     ps.setString(8, idUsuario);
                     ps.setString(9, horaFinal);
-                    ps.setString(10, idAlquiler);
+
+                    // 👇 estas dos controlan FINALIZADO
+                    ps.setString(10, estado);
+                    ps.setString(11, estado);
+
+                    ps.setString(12, idAlquiler);
+
                     ps.executeUpdate();
                 }
 
@@ -1296,6 +1337,10 @@ public class PanelAlquiler extends javax.swing.JPanel {
         validarEstadoAlquiler();
 
     }//GEN-LAST:event_jComboBoxEstadoActionPerformed
+
+    private void txtHoraActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtHoraActionPerformed
+       
+    }//GEN-LAST:event_txtHoraActionPerformed
 
     private void validarEstadoAlquiler() {
         Object item = jComboBoxEstado.getSelectedItem();

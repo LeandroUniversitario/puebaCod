@@ -4,6 +4,10 @@
  */
 package igu;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
@@ -13,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import persistencia.Cconexion;
@@ -33,6 +38,11 @@ public class LoginVentana extends javax.swing.JFrame {
         initComponents();
         setLocationRelativeTo(null);
         cargarImagenEnLabel("/img/fotoPlaya.png", city);
+        aplicarEstilos();
+        
+        configurarTeclaEnter();
+
+
 
     }
 
@@ -52,6 +62,99 @@ public class LoginVentana extends javax.swing.JFrame {
         g2.dispose();
         return resizedImg;
     }
+    private void configurarTeclaEnter() {
+        // Acción que simula el click en el botón "INGRESAR"
+        java.awt.event.ActionListener accionEnter = new java.awt.event.ActionListener() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                botonIngresar.doClick(); // <--- Esto es lo que hace la magia
+            }
+        };
+
+        // Le decimos a las cajas de texto: "Si te dan Enter, ejecuta esa acción"
+        txtUsuario.addActionListener(accionEnter);
+        jPasswordField1.addActionListener(accionEnter);
+    }
+
+    private void aplicarEstilos() {
+
+        Color AZUL = new Color(0, 134, 190);
+        Color FONDO = new Color(245, 247, 250);
+
+        // Fondo general
+        Bg.setBackground(FONDO);
+
+        // Títulos
+        jSesion.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        jSesion.setForeground(Color.BLACK);
+
+        jUsuario.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        jPassword.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        // --- ESTILIZAR CAMPO DE USUARIO ---
+        txtUsuario.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        txtUsuario.setForeground(new Color(60, 60, 60)); // Color de la letra gris oscuro
+        txtUsuario.setCaretColor(AZUL); // Color de la barrita que parpadea
+
+        // 1. Quitar el fondo blanco (hacerlo transparente)
+        txtUsuario.setBackground(new Color(0, 0, 0, 0)); // El 4to valor es Alpha (transparencia)
+        txtUsuario.setOpaque(false); // Importante para que Swing no pinte el rectángulo
+
+        // 2. Quitar el borde predeterminado (ese recuadro gris o 3D)
+        txtUsuario.setBorder(null);
+
+        // --- ESTILIZAR CAMPO DE CONTRASEÑA ---
+        jPasswordField1.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        jPasswordField1.setForeground(new Color(60, 60, 60));
+        jPasswordField1.setCaretColor(AZUL);
+
+        // Lo mismo para el password
+        jPasswordField1.setBackground(new Color(0, 0, 0, 0));
+        jPasswordField1.setOpaque(false);
+        jPasswordField1.setBorder(null);
+
+        // --- SEPARADORES (Las líneas debajo) ---
+        // Asegúrate de que tus separadores tengan el color correcto para que resalten
+        jSeparator1.setForeground(AZUL); // O Color.BLACK si prefieres
+        jSeparator1.setBackground(AZUL); // A veces necesario dependiendo del LAF
+
+        jSeparator2.setForeground(AZUL);
+        jSeparator2.setBackground(AZUL);
+        // Botones
+        estiloBoton(botonIngresar, AZUL, Color.WHITE);
+        estiloBoton(btnSalir, new Color(200, 200, 200), Color.BLACK);
+
+        // Enter para ingresar
+        getRootPane().setDefaultButton(botonIngresar);
+    }
+
+    private void estiloBoton(JButton btn, Color fondo, Color texto) {
+        btn.setBackground(fondo);
+        btn.setForeground(texto);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setOpaque(true);
+        hover(botonIngresar, new Color(0, 134, 190), new Color(0, 160, 220));
+        hover(btnSalir, new Color(200, 200, 200), new Color(180, 180, 180));
+
+    }
+
+    private void hover(JButton btn, Color normal, Color hover) {
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btn.setBackground(hover);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btn.setBackground(normal);
+            }
+        });
+    }
+    
+
+
+
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -62,7 +165,20 @@ public class LoginVentana extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        Bg = new javax.swing.JPanel();
+        Bg = new javax.swing.JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                GradientPaint gp = new GradientPaint(
+                    0, 0, new Color(245, 247, 250), 
+                    0, getHeight(), new Color(210, 235, 245)
+                );
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
         jLabel1 = new javax.swing.JLabel();
         nombre = new javax.swing.JLabel();
         logo = new javax.swing.JLabel();

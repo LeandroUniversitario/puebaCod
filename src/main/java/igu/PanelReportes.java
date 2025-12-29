@@ -15,7 +15,7 @@ public class PanelReportes extends PanelDegradado {
     private Connection conexion;
 
     // Componentes del panel
-    private JButton btnTuristas, btnRecursos, btnAlquileres, btnPorFecha, btnPorUsuario;
+    private JButton btnTuristas, btnRecursos, btnAlquileres, btnPorFecha, btnPorUsuario,btnBoletaMora;
     private JDateChooser jDateInicio, jDateFin;
     private JLabel lblDesde, lblHasta;
 
@@ -74,7 +74,7 @@ public class PanelReportes extends PanelDegradado {
             double totalConDescuento = rs.getDouble("total");
             double igv = rs.getDouble("igv");
             double totalConIGV = rs.getDouble("montoConIGV");
-
+            
             boolean tienePromo = rs.getString("idPromocion") != null;
             double porcentajeDescuento = extraerPorcentaje(rs.getString("promoDescripcion"));
 
@@ -146,6 +146,7 @@ public class PanelReportes extends PanelDegradado {
             }
 
             doc.add(new Paragraph("IGV (18%): S/ " + String.format("%.2f", igvSoles), fN));
+         
             doc.add(new Paragraph("--------------------------------", fN));
             doc.add(new Paragraph("TOTAL A PAGAR: S/ " + String.format("%.2f", totalConIGV), fB));
 
@@ -179,7 +180,7 @@ public class PanelReportes extends PanelDegradado {
 
         JLabel titulo = new JLabel("📊 GENERACIÓN DE REPORTES DEL SISTEMA");
         titulo.setHorizontalAlignment(SwingConstants.CENTER);
-        titulo.setFont(new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 16));
+        titulo.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.BOLD, 16));
         add(titulo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 20, 640, 30));
 
         // === BOTONES DE REPORTES PRINCIPALES ===
@@ -216,6 +217,131 @@ public class PanelReportes extends PanelDegradado {
         btnPorUsuario = crearBoton("👤 Reporte de Alquileres por Usuario");
         btnPorUsuario.addActionListener(evt -> generarReporteAlquileresPorUsuario());
         add(btnPorUsuario, new org.netbeans.lib.awtextra.AbsoluteConstraints(150, 320, 340, 40));
+        
+        btnBoletaMora = crearBoton("💸 Boleta por Mora");
+        btnBoletaMora.addActionListener(evt -> generarBoletaMora());
+        add(btnBoletaMora, new org.netbeans.lib.awtextra.AbsoluteConstraints(150, 420, 340, 40));
+    }
+    
+    private void generarBoletaMora() {
+
+        String idAlquiler = JOptionPane.showInputDialog(
+                this,
+                "Ingrese el ID del alquiler:",
+                "Boleta por Mora",
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (idAlquiler == null || idAlquiler.trim().isEmpty()) {
+            return; // cancelado
+        }
+
+        idAlquiler = idAlquiler.trim();
+
+        try {
+
+            String sql = """
+        SELECT 
+            A.estado,
+            A.mora,
+            T.nombre + ' ' + T.apellidos AS cliente,
+            A.fechaInicio,
+            A.horaInicio,
+            A.horaFinal,
+            A.horaFinalReal
+        FROM Alquiler A
+        JOIN Turista T ON A.idTurista = T.idTurista
+        WHERE A.idAlquiler = ?
+        """;
+
+            PreparedStatement ps = conexion.prepareStatement(sql);
+            ps.setString(1, idAlquiler);
+            ResultSet rs = ps.executeQuery();
+
+            if (!rs.next()) {
+                JOptionPane.showMessageDialog(this,
+                        "No existe un alquiler con ese ID",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            String estado = rs.getString("estado");
+            double mora = rs.getDouble("mora");
+
+            if (!"FINALIZADO".equalsIgnoreCase(estado)) {
+                JOptionPane.showMessageDialog(this,
+                        "El alquiler debe estar FINALIZADO",
+                        "Aviso",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (mora <= 0) {
+                JOptionPane.showMessageDialog(this,
+                        "Este alquiler no tiene mora",
+                        "Información",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            // 🧾 Generar boleta
+            generarPDFBoletaMora(
+                    idAlquiler,
+                    rs.getString("cliente"),
+                    rs.getDate("fechaInicio"),
+                    rs.getTime("horaFinal"),
+                    rs.getTime("horaFinalReal"),
+                    mora
+            );
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error al generar boleta de mora:\n" + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    private void generarPDFBoletaMora(String idAlquiler, String cliente, Date fechaInicio, Time horaProgramadaFin, Time horaFinal, double mora) {
+        String ruta = crearRuta("boleta_mora_" + idAlquiler + ".pdf");
+
+        try {
+            Document doc = new Document(new Rectangle(230, 500), 10, 10, 10, 10);
+            PdfWriter.getInstance(doc, new FileOutputStream(ruta));
+            doc.open();
+
+            Font fN = new Font(Font.FontFamily.HELVETICA, 8);
+            Font fB = new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD);
+
+            Paragraph p;
+
+            p = new Paragraph("ALQUILERES TURISTICOS DEL NORTE\n", fB);
+            p.setAlignment(Element.ALIGN_CENTER);
+            doc.add(p);
+
+            doc.add(new Paragraph("RUC 20457896543\nPiura - Perú\n", fN));
+            doc.add(new Paragraph("--------------------------------", fN));
+
+            doc.add(new Paragraph("BOLETA DE MORA", fB));
+            doc.add(new Paragraph("Alquiler: " + idAlquiler, fN));
+            doc.add(new Paragraph("Cliente: " + cliente, fN));
+            doc.add(new Paragraph("Fecha Inicio: " + fechaInicio, fN));
+            doc.add(new Paragraph("--------------------------------", fN));
+
+            doc.add(new Paragraph("DETALLES DEL ALQUILER: ", fB));
+            doc.add(new Paragraph("Hora programada de fin: " + horaProgramadaFin, fN));
+            doc.add(new Paragraph("Hora real de fin: " + horaFinal, fN));
+             doc.add(new Paragraph("Tolerancia: 10min", fN));
+            doc.add(new Paragraph("Mora: S/ " + String.format("%.2f", mora), fB));
+
+            doc.add(new Paragraph("\nGRACIAS POR SU PREFERENCIA", fB));
+
+            doc.close();
+            abrirPDF(ruta);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error al generar PDF:\n" + e.getMessage());
+        }
     }
 
     // ======================================================

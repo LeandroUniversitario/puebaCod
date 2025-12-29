@@ -15,8 +15,28 @@ public class PanelEntrada extends javax.swing.JPanel {
      */
     public PanelEntrada(String saludo) {
         initComponents();
-        this.saludo = saludo;
-        jLabel1.setText("bienvenido "+ saludo);
+        // 1. TRANSPARENCIA TOTAL
+        // Hacemos que este panel y el jPanel1 sean invisibles para ver el degradado de fondo
+        this.setOpaque(false);
+        jPanel1.setOpaque(false);
+
+        // 2. FORMATEO DEL TEXTO (Mayúsculas)
+        // Convertimos "juanperez" a "JUANPEREZ" para que se vea importante
+        String nombreUsuario = (saludo != null) ? saludo.toUpperCase() : "USUARIO";
+
+        // 3. FUENTE MODERNA
+        // Cambiamos DialogInput por Segoe UI, más grande y en Negrita
+        jLabel1.setFont(new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 32));
+
+        // 4. COLOR CORPORATIVO (Azul Petróleo)
+        // Usamos el mismo color del menú lateral para consistencia
+        jLabel1.setForeground(new java.awt.Color(31, 78, 95));
+
+        // 5. MENSAJE FINAL
+        jLabel1.setText("¡HOLA, " + nombreUsuario + "!");
+
+        // Ajuste extra: Asegurarnos que el texto esté centrado verticalmente en su espacio
+        jLabel1.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
     }
 
     /**

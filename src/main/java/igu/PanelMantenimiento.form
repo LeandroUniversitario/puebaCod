@@ -44,21 +44,19 @@
               <Component id="jLabel1" alignment="0" max="32767" attributes="0"/>
               <Group type="102" alignment="0" attributes="0">
                   <EmptySpace min="-2" pref="47" max="-2" attributes="0"/>
-                  <Group type="103" groupAlignment="0" max="-2" attributes="0">
-                      <Component id="btnGestionarTuristas" pref="212" max="32767" attributes="0"/>
-                      <Component id="btnGestionarPromos" max="32767" attributes="0"/>
-                  </Group>
-                  <EmptySpace pref="113" max="32767" attributes="0"/>
-                  <Group type="103" groupAlignment="0" attributes="0">
-                      <Component id="btnGestionarRecursos" min="-2" pref="227" max="-2" attributes="0"/>
-                      <Component id="btnGestionarUsuarios" min="-2" pref="227" max="-2" attributes="0"/>
-                  </Group>
-                  <EmptySpace min="-2" pref="41" max="-2" attributes="0"/>
+                  <Component id="btnGestionarTuristas" min="-2" pref="165" max="-2" attributes="0"/>
+                  <EmptySpace pref="28" max="32767" attributes="0"/>
+                  <Component id="btnGestionarRecursos" min="-2" pref="168" max="-2" attributes="0"/>
+                  <EmptySpace min="-2" pref="33" max="-2" attributes="0"/>
+                  <Component id="btnGestionarPromos" min="-2" pref="168" max="-2" attributes="0"/>
+                  <EmptySpace min="-2" pref="31" max="-2" attributes="0"/>
               </Group>
-              <Group type="102" alignment="0" attributes="0">
-                  <EmptySpace min="-2" pref="203" max="-2" attributes="0"/>
-                  <Component id="btnGestionarNiv" min="-2" pref="199" max="-2" attributes="0"/>
+              <Group type="102" alignment="1" attributes="0">
                   <EmptySpace max="32767" attributes="0"/>
+                  <Component id="btnGestionarUsuarios" min="-2" pref="168" max="-2" attributes="0"/>
+                  <EmptySpace min="-2" pref="48" max="-2" attributes="0"/>
+                  <Component id="btnGestionarNiv" min="-2" pref="168" max="-2" attributes="0"/>
+                  <EmptySpace min="-2" pref="128" max="-2" attributes="0"/>
               </Group>
           </Group>
         </DimensionLayout>
@@ -69,17 +67,16 @@
                   <Component id="jLabel1" min="-2" max="-2" attributes="0"/>
                   <EmptySpace min="-2" pref="91" max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="3" attributes="0">
-                      <Component id="btnGestionarTuristas" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="btnGestionarRecursos" alignment="3" min="-2" max="-2" attributes="0"/>
-                  </Group>
-                  <EmptySpace min="-2" pref="32" max="-2" attributes="0"/>
-                  <Group type="103" groupAlignment="3" attributes="0">
-                      <Component id="btnGestionarPromos" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="btnGestionarUsuarios" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="btnGestionarTuristas" alignment="3" min="-2" pref="86" max="-2" attributes="0"/>
+                      <Component id="btnGestionarRecursos" alignment="3" min="-2" pref="86" max="-2" attributes="0"/>
+                      <Component id="btnGestionarPromos" alignment="3" min="-2" pref="86" max="-2" attributes="0"/>
                   </Group>
                   <EmptySpace min="-2" pref="62" max="-2" attributes="0"/>
-                  <Component id="btnGestionarNiv" min="-2" max="-2" attributes="0"/>
-                  <EmptySpace pref="178" max="32767" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="btnGestionarUsuarios" alignment="3" min="-2" pref="86" max="-2" attributes="0"/>
+                      <Component id="btnGestionarNiv" alignment="3" min="-2" pref="86" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace pref="110" max="32767" attributes="0"/>
               </Group>
           </Group>
         </DimensionLayout>

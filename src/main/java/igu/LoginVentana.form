@@ -40,6 +40,9 @@
           <Color blue="ff" green="ff" red="ff" type="rgb"/>
         </Property>
       </Properties>
+      <AuxValues>
+        <AuxValue name="JavaCodeGenerator_CreateCodeCustom" type="java.lang.String" value="new javax.swing.JPanel() {&#xd;&#xa;    @Override&#xd;&#xa;    protected void paintComponent(Graphics g) {&#xd;&#xa;        super.paintComponent(g);&#xd;&#xa;        Graphics2D g2 = (Graphics2D) g;&#xd;&#xa;        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);&#xd;&#xa;        GradientPaint gp = new GradientPaint(&#xd;&#xa;            0, 0, new Color(245, 247, 250), &#xd;&#xa;            0, getHeight(), new Color(210, 235, 245)&#xd;&#xa;        );&#xd;&#xa;        g2.setPaint(gp);&#xd;&#xa;        g2.fillRect(0, 0, getWidth(), getHeight());&#xd;&#xa;    }&#xd;&#xa;}"/>
+      </AuxValues>
 
       <Layout class="org.netbeans.modules.form.compat2.layouts.DesignAbsoluteLayout">
         <Property name="useNullLayout" type="boolean" value="false"/>

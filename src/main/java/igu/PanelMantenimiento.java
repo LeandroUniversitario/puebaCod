@@ -5,6 +5,7 @@
 package igu;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.sql.Connection;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -22,6 +23,13 @@ public class PanelMantenimiento extends javax.swing.JPanel {
      */
     public PanelMantenimiento(Connection conexion, String usuario, String nivel) {
         initComponents();
+        jLabel1.setFont(new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 24));
+        jLabel1.setForeground(new java.awt.Color(31, 78, 95));
+        jLabel1.setText("PANEL DE CONTROL");
+        // Usamos HTML para subrayar
+        jLabel1.setText("<html><u>PANEL DE CONTROL</u></html>");
+        jLabel1.setForeground(new java.awt.Color(31, 78, 95));
+// Añádele una sombra o contorno negro si el fondo es muy claro en esa parte
         PanelDegradado fondo = new PanelDegradado();
 
 // MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
@@ -47,22 +55,55 @@ public class PanelMantenimiento extends javax.swing.JPanel {
     }
 
     private void personalizarBotones() {
-        java.awt.Font fuente = new java.awt.Font("Segoe UI Emoji", java.awt.Font.PLAIN, 13);
+        // Fuente moderna y un poco más grande
+        java.awt.Font fuenteTitulo = new java.awt.Font("Segoe UI Emoji", java.awt.Font.BOLD, 14);
 
-        btnGestionarTuristas.setFont(fuente);
-        btnGestionarTuristas.setText("🧍‍♂️ GESTIONAR TURISTAS");
+        // Array para aplicar estilo a todos de golpe
+        javax.swing.JButton[] botones = {btnGestionarTuristas, btnGestionarRecursos, btnGestionarPromos, btnGestionarUsuarios, btnGestionarNiv};
 
-        btnGestionarRecursos.setFont(fuente);
-        btnGestionarRecursos.setText("🛞 GESTIONAR RECURSOS");
+        // Colores del tema (Azul Playa)
+        java.awt.Color colorFondoBtn = new java.awt.Color(255, 255, 255, 200); // Blanco semi-transparente
+        java.awt.Color colorTexto = new java.awt.Color(31, 78, 95); // Azul Petróleo (mismo del menú)
 
-        btnGestionarPromos.setFont(fuente);
-        btnGestionarPromos.setText("🎟️ GESTIONAR PROMOCIONES");
+        for (javax.swing.JButton btn : botones) {
+            btn.setFont(fuenteTitulo);
+            btn.setForeground(colorTexto);
+            btn.setBackground(colorFondoBtn);
 
-        btnGestionarUsuarios.setFont(fuente);
-        btnGestionarUsuarios.setText("👥 GESTIONAR USUARIOS");
+            // ESTILO MODERNO (FLAT)
+            btn.setFocusPainted(false);
+            btn.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                    javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255), 2), // Borde blanco
+                    javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10) // Margen interno
+            ));
 
-        btnGestionarNiv.setFont(fuente);
-        btnGestionarNiv.setText("📈 GESTIONAR NIVELES");
+            // Hacemos que el icono esté ARRIBA del texto
+            btn.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
+            btn.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
+
+            // Cursor de mano
+            btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+
+            // Efecto Hover (Sencillo)
+            btn.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseEntered(java.awt.event.MouseEvent evt) {
+                    btn.setBackground(new java.awt.Color(255, 255, 255)); // Blanco puro al pasar mouse
+                }
+
+                public void mouseExited(java.awt.event.MouseEvent evt) {
+                    btn.setBackground(colorFondoBtn); // Vuelve a semi-transparente
+                }
+            });
+        }
+
+        // TEXTOS (Emojis más grandes como "Iconos")
+        // Nota: Si puedes, usa iconos reales (.png), pero los emojis funcionan rápido.
+        // Usamos HTML para forzar saltos de línea si el texto es largo
+        btnGestionarTuristas.setText("<html><center><font size='6'>🧍‍♂️</font><br>TURISTAS</center></html>");
+        btnGestionarRecursos.setText("<html><center><font size='6'>🛞</font><br>RECURSOS</center></html>");
+        btnGestionarPromos.setText("<html><center><font size='6'>🎟️</font><br>PROMOCIONES</center></html>");
+        btnGestionarUsuarios.setText("<html><center><font size='6'>👥</font><br>USUARIOS</center></html>");
+        btnGestionarNiv.setText("<html><center><font size='6'>📈</font><br>NIVELES</center></html>");
     }
 
 
@@ -137,18 +178,18 @@ public class PanelMantenimiento extends javax.swing.JPanel {
             .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(PanelMantLayout.createSequentialGroup()
                 .addGap(47, 47, 47)
-                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(btnGestionarTuristas, javax.swing.GroupLayout.DEFAULT_SIZE, 212, Short.MAX_VALUE)
-                    .addComponent(btnGestionarPromos, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 113, Short.MAX_VALUE)
-                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(btnGestionarRecursos, javax.swing.GroupLayout.PREFERRED_SIZE, 227, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(btnGestionarUsuarios, javax.swing.GroupLayout.PREFERRED_SIZE, 227, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(41, 41, 41))
-            .addGroup(PanelMantLayout.createSequentialGroup()
-                .addGap(203, 203, 203)
-                .addComponent(btnGestionarNiv, javax.swing.GroupLayout.PREFERRED_SIZE, 199, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(btnGestionarTuristas, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 28, Short.MAX_VALUE)
+                .addComponent(btnGestionarRecursos, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(33, 33, 33)
+                .addComponent(btnGestionarPromos, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(31, 31, 31))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PanelMantLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(btnGestionarUsuarios, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(48, 48, 48)
+                .addComponent(btnGestionarNiv, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(128, 128, 128))
         );
         PanelMantLayout.setVerticalGroup(
             PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -157,15 +198,14 @@ public class PanelMantenimiento extends javax.swing.JPanel {
                 .addComponent(jLabel1)
                 .addGap(91, 91, 91)
                 .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(btnGestionarTuristas)
-                    .addComponent(btnGestionarRecursos))
-                .addGap(32, 32, 32)
-                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(btnGestionarPromos)
-                    .addComponent(btnGestionarUsuarios))
+                    .addComponent(btnGestionarTuristas, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnGestionarRecursos, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnGestionarPromos, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(62, 62, 62)
-                .addComponent(btnGestionarNiv)
-                .addContainerGap(178, Short.MAX_VALUE))
+                .addGroup(PanelMantLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnGestionarUsuarios, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnGestionarNiv, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(110, Short.MAX_VALUE))
         );
 
         add(PanelMant, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
