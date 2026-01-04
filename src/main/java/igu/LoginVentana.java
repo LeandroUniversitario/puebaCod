@@ -11,11 +11,13 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
+import java.awt.font.TextAttribute;
 import java.awt.image.BufferedImage;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -29,7 +31,7 @@ import persistencia.Cconexion;
 public class LoginVentana extends javax.swing.JFrame {
 
     private Cconexion conexionBD;
-
+    private javax.swing.JButton btnOjo; // Decláralo con tus variables
     /**
      * Creates new form LoginFinal
      */
@@ -38,18 +40,56 @@ public class LoginVentana extends javax.swing.JFrame {
         initComponents();
         setLocationRelativeTo(null);
         cargarImagenEnLabel("/img/fotoPlaya.png", city);
-        aplicarEstilos();
+       // 2. Crear y configurar el botón Ojo 👁️
+        crearBotonOjo();
         
+        aplicarEstilos();
         configurarTeclaEnter();
 
+        new TextPrompt("Ingrese su usuario", txtUsuario);
+        new TextPrompt("••••••••", jPasswordField1);
 
+    }
+    private void crearBotonOjo() {
+        btnOjo = new JButton("👁️");
 
+        // Estilo invisible
+        btnOjo.setBorder(null);
+        btnOjo.setContentAreaFilled(false);
+        btnOjo.setFocusPainted(false);
+        btnOjo.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+
+        // Lógica Ver/Ocultar
+        btnOjo.addActionListener(evt -> {
+            char echo = jPasswordField1.getEchoChar();
+            if (echo == '•') {
+                jPasswordField1.setEchoChar((char) 0);
+                btnOjo.setText("🙈");
+            } else {
+                jPasswordField1.setEchoChar('•');
+                btnOjo.setText("👁️");
+            }
+        });
+
+        // Agregarlo manualmente al layout absoluto
+        // Coordenadas: X=400 (al final del campo), Y=320 (altura del password)
+        Bg.add(btnOjo, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 320, 50, 30));
+        Bg.setComponentZOrder(btnOjo, 0); // Traer al frente
     }
 
     private void cargarImagenEnLabel(String ruta, JLabel label) {
-        ImageIcon iconoOriginal = new ImageIcon(getClass().getResource(ruta));
-        Image imagen = getScaledImage(iconoOriginal.getImage(), label.getWidth(), label.getHeight());
-        label.setIcon(new ImageIcon(imagen));
+        try {
+            ImageIcon iconoOriginal = new ImageIcon(getClass().getResource(ruta));
+            // Validar que la imagen existe para evitar errores
+            if (iconoOriginal.getImageLoadStatus() == java.awt.MediaTracker.ERRORED) {
+                System.out.println("Error: No se pudo cargar la imagen en " + ruta);
+                return;
+            }
+            Image imagen = getScaledImage(iconoOriginal.getImage(), label.getWidth(), label.getHeight());
+            label.setIcon(new ImageIcon(imagen));
+        } catch (Exception e) {
+            System.out.println("Error cargando imagen: " + e.getMessage());
+        }
     }
 
     private Image getScaledImage(Image srcImg, int w, int h) {
@@ -77,66 +117,109 @@ public class LoginVentana extends javax.swing.JFrame {
     }
 
     private void aplicarEstilos() {
-
+     // --- COLORES ---
         Color AZUL = new Color(0, 134, 190);
         Color FONDO = new Color(245, 247, 250);
-
-        // Fondo general
         Bg.setBackground(FONDO);
 
-        // Títulos
+        // --- FUENTES Y ESTILOS DE TÍTULOS DE LOGIN ---
         jSesion.setFont(new Font("Segoe UI", Font.BOLD, 24));
         jSesion.setForeground(Color.BLACK);
-
         jUsuario.setFont(new Font("Segoe UI", Font.BOLD, 13));
         jPassword.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
-        // --- ESTILIZAR CAMPO DE USUARIO ---
+        // --- CAMPOS DE TEXTO ---
         txtUsuario.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        txtUsuario.setForeground(new Color(60, 60, 60)); // Color de la letra gris oscuro
-        txtUsuario.setCaretColor(AZUL); // Color de la barrita que parpadea
-
-        // 1. Quitar el fondo blanco (hacerlo transparente)
-        txtUsuario.setBackground(new Color(0, 0, 0, 0)); // El 4to valor es Alpha (transparencia)
-        txtUsuario.setOpaque(false); // Importante para que Swing no pinte el rectángulo
-
-        // 2. Quitar el borde predeterminado (ese recuadro gris o 3D)
+        txtUsuario.setForeground(new Color(60, 60, 60));
+        txtUsuario.setCaretColor(AZUL);
+        txtUsuario.setBackground(new Color(0, 0, 0, 0));
+        txtUsuario.setOpaque(false);
         txtUsuario.setBorder(null);
 
-        // --- ESTILIZAR CAMPO DE CONTRASEÑA ---
         jPasswordField1.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         jPasswordField1.setForeground(new Color(60, 60, 60));
         jPasswordField1.setCaretColor(AZUL);
-
-        // Lo mismo para el password
         jPasswordField1.setBackground(new Color(0, 0, 0, 0));
         jPasswordField1.setOpaque(false);
         jPasswordField1.setBorder(null);
 
-        // --- SEPARADORES (Las líneas debajo) ---
-        // Asegúrate de que tus separadores tengan el color correcto para que resalten
-        jSeparator1.setForeground(AZUL); // O Color.BLACK si prefieres
-        jSeparator1.setBackground(AZUL); // A veces necesario dependiendo del LAF
-
+        // --- SEPARADORES ---
+        jSeparator1.setForeground(AZUL);
+        jSeparator1.setBackground(AZUL);
         jSeparator2.setForeground(AZUL);
         jSeparator2.setBackground(AZUL);
-        // Botones
+
+        // --- BOTONES ---
         estiloBoton(botonIngresar, AZUL, Color.WHITE);
         estiloBoton(btnSalir, new Color(200, 200, 200), Color.BLACK);
-
-        // Enter para ingresar
         getRootPane().setDefaultButton(botonIngresar);
+
+        // Estilo especial para el Ojo (Emoji)
+        btnOjo.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
+        btnOjo.setForeground(Color.BLACK);
+        hover(btnOjo, new Color(0, 0, 0, 0), new Color(230, 230, 230));
+
+        // --- CORRECCIÓN DEL TÍTULO ELEGANTE ("ALQUILERES...") ---
+        
+        // 1. Usamos HTML para forzar el centrado y salto de línea.
+        // Esto evita tener que calcular coordenadas complejas.
+        nombre.setText("<html><div style='text-align: center;'>ALQUILERES<br>TURÍSTICOS</div></html>");
+        
+        // 2. Fuente con espaciado (Tracking)
+        Font fuenteBase = new Font("Segoe UI", Font.PLAIN, 24);
+        Map<TextAttribute, Object> atributos = (Map<TextAttribute, Object>) fuenteBase.getAttributes();
+        atributos.put(TextAttribute.TRACKING, 0.1); // Espaciado sutil
+        nombre.setFont(fuenteBase.deriveFont(atributos));
+        nombre.setForeground(new Color(31, 78, 95));
+        nombre.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+
+        // 3. Subtítulo "DEL NORTE - PIURA"
+        jLabel1.setText("DEL NORTE - PIURA");
+        jLabel1.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        jLabel1.setForeground(Color.GRAY);
+        jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+
+       
+        // 4. RE-POSICIONAMIENTO FORZADO
+        
+        // Primero quitamos todo lo conflictivo
+        Bg.remove(city);
+        Bg.remove(nombre);
+        Bg.remove(jLabel1);
+        Bg.remove(logo); // Quitamos el logo también para reordenarlo bien
+
+        // AHORA AGREGAMOS EN ORDEN DE "CAPAS" (De atrás hacia adelante)
+        
+        // CAPA 1 (Fondo): La foto de la playa
+        Bg.add(city, new org.netbeans.lib.awtextra.AbsoluteConstraints(544, 0, 300, 500));
+
+        // CAPA 2 (Encima): Logo, Título y Subtítulo
+        Bg.add(logo, new org.netbeans.lib.awtextra.AbsoluteConstraints(550, 10, 280, 160));
+        
+        // Ajustamos la posición del texto un poco más arriba para que no choque con nada
+        Bg.add(nombre, new org.netbeans.lib.awtextra.AbsoluteConstraints(544, 280, 300, 80)); 
+        Bg.add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(544, 350, 300, 20));
+
+        // CAPA SUPERIOR (Aseguramos Z-Order por si acaso)
+        // El índice 0 es el MÁS AL FRENTE.
+        Bg.setComponentZOrder(logo, 0);
+        Bg.setComponentZOrder(nombre, 0);
+        Bg.setComponentZOrder(jLabel1, 0);
+        Bg.setComponentZOrder(city, 3); // La foto al fondo (índice más alto)
+
+        Bg.revalidate();
+        Bg.repaint();
     }
 
     private void estiloBoton(JButton btn, Color fondo, Color texto) {
-        btn.setBackground(fondo);
+       btn.setBackground(fondo);
         btn.setForeground(texto);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
         btn.setOpaque(true);
-        hover(botonIngresar, new Color(0, 134, 190), new Color(0, 160, 220));
-        hover(btnSalir, new Color(200, 200, 200), new Color(180, 180, 180));
+        hover(btn, fondo, fondo.brighter()); // Efecto brillo automático
+       
 
     }
 
@@ -145,7 +228,6 @@ public class LoginVentana extends javax.swing.JFrame {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 btn.setBackground(hover);
             }
-
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 btn.setBackground(normal);
             }
@@ -385,4 +467,34 @@ public class LoginVentana extends javax.swing.JFrame {
     private javax.swing.JLabel nombre;
     private javax.swing.JTextField txtUsuario;
     // End of variables declaration//GEN-END:variables
+}
+// Clase auxiliar para el texto fantasma
+class TextPrompt extends javax.swing.JLabel implements java.awt.event.FocusListener, javax.swing.event.DocumentListener {
+    private javax.swing.text.JTextComponent component;
+    private javax.swing.text.Document document;
+
+    public TextPrompt(String text, javax.swing.text.JTextComponent component) {
+        this.component = component;
+        document = component.getDocument();
+        setText(text);
+        setFont(component.getFont());
+        setForeground(new java.awt.Color(153, 153, 153)); // Gris suave
+        setHorizontalAlignment(javax.swing.JLabel.LEADING);
+        component.addFocusListener(this);
+        document.addDocumentListener(this);
+        component.setLayout(new java.awt.BorderLayout());
+        component.add(this);
+        checkForPrompt();
+    }
+
+    private void checkForPrompt() {
+        if (document.getLength() > 0) setVisible(false);
+        else setVisible(true);
+    }
+
+    public void focusGained(java.awt.event.FocusEvent e) { checkForPrompt(); }
+    public void focusLost(java.awt.event.FocusEvent e) { checkForPrompt(); setSize(0,0); } // Forzar repintado
+    public void insertUpdate(javax.swing.event.DocumentEvent e) { checkForPrompt(); }
+    public void removeUpdate(javax.swing.event.DocumentEvent e) { checkForPrompt(); }
+    public void changedUpdate(javax.swing.event.DocumentEvent e) {}
 }

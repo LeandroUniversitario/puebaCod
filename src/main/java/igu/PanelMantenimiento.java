@@ -99,11 +99,30 @@ public class PanelMantenimiento extends javax.swing.JPanel {
         // TEXTOS (Emojis más grandes como "Iconos")
         // Nota: Si puedes, usa iconos reales (.png), pero los emojis funcionan rápido.
         // Usamos HTML para forzar saltos de línea si el texto es largo
-        btnGestionarTuristas.setText("<html><center><font size='6'>🧍‍♂️</font><br>TURISTAS</center></html>");
-        btnGestionarRecursos.setText("<html><center><font size='6'>🛞</font><br>RECURSOS</center></html>");
-        btnGestionarPromos.setText("<html><center><font size='6'>🎟️</font><br>PROMOCIONES</center></html>");
-        btnGestionarUsuarios.setText("<html><center><font size='6'>👥</font><br>USUARIOS</center></html>");
-        btnGestionarNiv.setText("<html><center><font size='6'>📈</font><br>NIVELES</center></html>");
+        btnGestionarTuristas.setText("<html><center>"
+                + "<font size='6'>" + "🧍‍♂️" + "</font><br>"
+                + "<nobr>" + "TURISTAS " + "</nobr>" // <--- ESTO EVITA QUE LA 'S' BAJE
+                + "</center></html>");
+         btnGestionarRecursos.setText("<html><center>"
+                + "<font size='6'>" + "🛞" + "</font><br>"
+                + "<nobr>" + "RECURSOS " + "</nobr>" // <--- ESTO EVITA QUE LA 'S' BAJE
+                + "</center></html>");
+        btnGestionarPromos.setText("<html><center>"
+                + "<font size='6'>" + "🎟" + "</font><br>"
+                + "<nobr>" + "PROMOS " + "</nobr>" // <--- ESTO EVITA QUE LA 'S' BAJE
+                + "</center></html>");
+        btnGestionarUsuarios.setText("<html><center>"
+                + "<font size='6'>" + "👥" + "</font><br>"
+                + "<nobr>" + "USUARIOS " + "</nobr>" // <--- ESTO EVITA QUE LA 'S' BAJE
+                + "</center></html>");
+        btnGestionarNiv.setText("<html><center>"
+                + "<font size='6'>" + "📈" + "</font><br>"
+                + "<nobr>" + "NIVELES " + "</nobr>" // <--- ESTO EVITA QUE LA 'S' BAJE
+                + "</center></html>");
+        
+      
+       
+        
     }
 
 

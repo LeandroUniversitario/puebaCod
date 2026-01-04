@@ -64,6 +64,8 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel1.setBounds(0, 20, 640, 40);
 
+       
+        // ----------------------------------------
         // 2. CONFIGURACIÓN DE FILAS (Compactamos el espacio vertical)
         int xLabel = 40;       // Donde empiezan las etiquetas
         int xTxt = 150;        // Donde empiezan las cajas
@@ -91,6 +93,16 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         // Fila 5: Contacto
         lblContacto.setBounds(xLabel, inicioY + (separacion * 4), 100, alto);
         txtContacto.setBounds(xTxt, inicioY + (separacion * 4), anchoTxt, alto);
+
+        // --- AGREGAR LÍNEA SEPARADORA AQUÍ ---
+        // Justo después del último campo y antes de los botones
+        javax.swing.JPanel lineaDivisoria = new javax.swing.JPanel();
+        // Usamos el mismo color Azul Petróleo de tus letras para que combine
+        lineaDivisoria.setBackground(new java.awt.Color(31, 78, 95));
+        // Ubicación: Y=310 está justo en el hueco entre el contacto (Y=290) y los botones (Y=330)
+        lineaDivisoria.setBounds(30, 310, 580, 2);
+
+        jPanel1.add(lineaDivisoria); // ¡No olvides esta línea!
 
         // 3. LOS BOTONES (Todos en una sola fila ordenada)
         int yBotones = 330; // Altura perfecta debajo del formulario

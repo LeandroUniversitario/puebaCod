@@ -4,12 +4,21 @@
  */
 package igu;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.SwingConstants;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 
 /**
  *
@@ -17,71 +26,172 @@ import javax.swing.table.DefaultTableModel;
  */
 public class VentanaAlquileres extends javax.swing.JFrame {
     private Connection conexion;
+    private DefaultTableModel modeloTabla; // Variable de clase para el modelo
     /**
      * Creates new form VentanaAlquileres
      */
     public VentanaAlquileres(Connection conexion) {
         initComponents();
         this.conexion = conexion;
-        // En el GroupLayout o AbsoluteLayout
-        jPanel1.add(jPanel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 900, 500));
-        setSize(900, 550);
+        // 1. Aplicar el diseño visual (Fondo degradado y Título)
+        aplicarDiseñoVisual();
 
-        jTable1.setDefaultEditor(Object.class, null);
-        jTable1.getTableHeader().setReorderingAllowed(false);
+        // 2. Configurar la tabla con el estilo moderno (Colores, Fuentes, Alineación)
+        estilizarTabla();
 
-        jTable1.setModel(new javax.swing.table.DefaultTableModel(
-                new Object[][]{},
-                new String[]{
-                    "idAlquiler", "idTurista", "DNI Turista", "Nombre Turista",
-                    "fechaInicio", "horaInicio", "Duracion", "Total",
-                    "estado", "idPromocion", "idUsuario", "horaFinal"
-                }
-        ));
-        jTable1.getColumnModel().getColumn(0).setPreferredWidth(60);   // idAlquiler
-        jTable1.getColumnModel().getColumn(1).setPreferredWidth(60);   // idTurista
-        jTable1.getColumnModel().getColumn(2).setPreferredWidth(80);   // DNI
-        jTable1.getColumnModel().getColumn(3).setPreferredWidth(160);  // Nombre
-        jTable1.getColumnModel().getColumn(4).setPreferredWidth(90);   // fecha
-        jTable1.getColumnModel().getColumn(5).setPreferredWidth(70);   // horaInicio
-        jTable1.getColumnModel().getColumn(6).setPreferredWidth(60);   // duracion
-        jTable1.getColumnModel().getColumn(7).setPreferredWidth(70);   // total
-        jTable1.getColumnModel().getColumn(8).setPreferredWidth(90);   // estado
-        jTable1.getColumnModel().getColumn(9).setPreferredWidth(80);   // promo
-        jTable1.getColumnModel().getColumn(10).setPreferredWidth(70);  // usuario
-        jTable1.getColumnModel().getColumn(11).setPreferredWidth(70);  //
+        // 3. Cargar los datos completos
         cargarAlquileres();
 
+        // Configuraciones de la ventana
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("Historial de Alquileres");
+        setSize(1100, 650); // Ventana grande
+        setLocationRelativeTo(null); // Centrar en pantalla
     }
 
-    private void cargarAlquileres() {
-        DefaultTableModel modelo = (DefaultTableModel) jTable1.getModel();
-        modelo.setRowCount(0); // limpiar filas anteriores
+    // --- MÉTODO 1: DISEÑO GENERAL (Fondo y Título) ---
+    private void aplicarDiseñoVisual() {
+        // Usamos tu clase PanelDegradado
+        PanelDegradado panelFondo = new PanelDegradado();
+        panelFondo.setLayout(new BorderLayout());
+        
+        // Añadimos un margen externo invisible
+        panelFondo.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
+        // TÍTULO: Lo creamos por código para no depender del diseñador
+        JLabel titulo = new JLabel("HISTORIAL DE ALQUILERES");
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        titulo.setForeground(new Color(31, 78, 95)); // Azul Petróleo
+        titulo.setHorizontalAlignment(SwingConstants.CENTER);
+        titulo.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0)); // Espacio abajo del título
+
+        // Añadimos el título al NORTE del panel degradado
+        panelFondo.add(titulo, BorderLayout.NORTH);
+
+        // TABLA: Sacamos el JScrollPane que creó NetBeans y lo metemos en nuestro panel
+        // Esto hace que la tabla ocupe todo el CENTRO y crezca con la ventana
+        panelFondo.add(jScrollPane1, BorderLayout.CENTER);
+
+        // Reemplazamos el panel principal de la ventana con nuestro panel degradado
+        this.setContentPane(panelFondo);
+        
+        // Refrescamos
+        this.validate();
+    }
+    
+    // --- MÉTODO 2: ESTILIZADO DE TABLA (Idéntico a PanelRecursos) ---
+    private void estilizarTabla() {
+        // A. FUENTE Y FILAS
+        jTable1.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        jTable1.setRowHeight(30); // Filas altas
+        jTable1.setGridColor(new Color(230, 230, 230)); // Gris suave
+        jTable1.setShowVerticalLines(false); // Estilo limpio sin lineas verticales
+        jTable1.setIntercellSpacing(new java.awt.Dimension(0, 0));
+
+        // B. ENCABEZADO (HEADER) AZUL PETRÓLEO
+        JTableHeader header = jTable1.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        header.setBackground(new Color(31, 78, 95)); // Tu color corporativo
+        header.setForeground(Color.WHITE);
+        header.setOpaque(true);
+        header.setReorderingAllowed(false); // No mover columnas
+
+        // C. RENDERER: Colores Alternados (Efecto Cebra) y Centrado
+        jTable1.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(
+                    javax.swing.JTable table, Object value, boolean isSelected,
+                    boolean hasFocus, int row, int column) {
+
+                java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                
+                // Centrar texto
+                this.setHorizontalAlignment(SwingConstants.CENTER);
+
+                if (isSelected) {
+                    // Color de selección (Celeste del degradado)
+                    c.setBackground(new Color(162, 211, 224));
+                    c.setForeground(Color.BLACK);
+                } else {
+                    // Filas pares blancas, impares gris muy claro
+                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(245, 245, 245));
+                    c.setForeground(Color.BLACK);
+                }
+                return c;
+            }
+        });
+
+        // D. FONDO DEL SCROLLPANE
+        jScrollPane1.getViewport().setBackground(Color.WHITE);
+        jScrollPane1.setBorder(BorderFactory.createEmptyBorder()); // Sin borde feo
+    }
+   
+    // --- MÉTODO 3: DATOS Y COLUMNAS ---
+    private void cargarAlquileres() {
+        // 1. Definir columnas (14 en total)
+        String[] titulos = {
+            "ID Alq.",      // 0
+            "ID Turista",   // 1
+            "DNI",          // 2
+            "Nombre Turista",// 3
+            "F. Inicio",    // 4
+            "H. Inicio",    // 5
+            "Dur.",         // 6
+            "Total",        // 7
+            "Estado",       // 8
+            "Promo",        // 9
+            "User",         // 10
+            "H. Fin Plan",  // 11
+            "H. Fin Real",  // 12
+            "Mora"          // 13
+        };
+
+        // 2. Modelo que bloquea edición
+        modeloTabla = new DefaultTableModel(null, titulos) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        jTable1.setModel(modeloTabla);
+        
+        // Scroll horizontal necesario para tantas columnas
+        jTable1.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF); 
+
+        // 3. Ajustar Anchos de Columnas
+        int[] anchos = {60, 60, 80, 200, 80, 70, 50, 70, 80, 70, 60, 80, 80, 70};
+        for (int i = 0; i < jTable1.getColumnCount(); i++) {
+            if (i < anchos.length) {
+                jTable1.getColumnModel().getColumn(i).setPreferredWidth(anchos[i]);
+            }
+        }
+
+        // 4. SQL: Incluye horaFinalReal y Mora
+        modeloTabla.setRowCount(0);
         String sql = """
-        SELECT 
-            A.idAlquiler, 
-            A.idTurista, 
-            ISNULL(T.DNI, '—') AS DNI,
-            ISNULL(CONCAT(T.nombre, ' ', T.apellidos), '—') AS NombreCompleto,
-            A.fechaInicio, 
-            A.horaInicio, 
-            A.Duracion, 
-            A.total, 
-            A.estado, 
-            ISNULL(A.idPromocion, '—') AS idPromocion,
-            A.idUsuario, 
-            ISNULL(CONVERT(VARCHAR(8), A.horaFinal, 108), '—') AS horaFinal
-        FROM Alquiler A
-        LEFT JOIN Turista T ON A.idTurista = T.idTurista
-        ORDER BY A.idAlquiler
-    """;
+            SELECT 
+                A.idAlquiler, 
+                A.idTurista, 
+                ISNULL(T.DNI, '—') AS DNI,
+                ISNULL(CONCAT(T.nombre, ' ', T.apellidos), '—') AS NombreCompleto,
+                A.fechaInicio, 
+                A.horaInicio, 
+                A.Duracion, 
+                A.total, 
+                A.estado, 
+                ISNULL(A.idPromocion, '—') AS idPromocion,
+                A.idUsuario, 
+                ISNULL(CONVERT(VARCHAR(8), A.horaFinal, 108), '—') AS horaFinal,
+                ISNULL(CONVERT(VARCHAR(8), A.horaFinalReal, 108), '—') AS horaFinalReal,
+                ISNULL(A.mora, 0.00) AS mora
+            FROM Alquiler A
+            LEFT JOIN Turista T ON A.idTurista = T.idTurista
+            ORDER BY A.idAlquiler DESC
+        """;
 
         try (PreparedStatement ps = conexion.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-
             while (rs.next()) {
-                Object[] fila = new Object[12];
+                Object[] fila = new Object[14];
                 fila[0] = rs.getString("idAlquiler");
                 fila[1] = rs.getString("idTurista");
                 fila[2] = rs.getString("DNI");
@@ -94,13 +204,12 @@ public class VentanaAlquileres extends javax.swing.JFrame {
                 fila[9] = rs.getString("idPromocion");
                 fila[10] = rs.getString("idUsuario");
                 fila[11] = rs.getString("horaFinal");
-                modelo.addRow(fila);
+                fila[12] = rs.getString("horaFinalReal");
+                fila[13] = rs.getBigDecimal("mora");
+                modeloTabla.addRow(fila);
             }
-
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Error al cargar los alquileres: " + e.getMessage(),
-                    "Error SQL", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error SQL: " + e.getMessage());
         }
     }
 

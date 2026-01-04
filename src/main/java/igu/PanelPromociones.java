@@ -4,12 +4,16 @@
  */
 package igu;
 
+import java.awt.Color;
+import java.awt.Font;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.swing.BorderFactory;
 import javax.swing.JOptionPane;
+import javax.swing.SwingConstants;
 
 /**
  *
@@ -24,11 +28,165 @@ public class PanelPromociones extends javax.swing.JPanel {
      */
     public PanelPromociones(Connection conexion, String nivel) {
         initComponents();
-        this.conexion=conexion;
-        this.nivel=nivel;
-         habilitarCampos(false);
+        this.conexion = conexion;
+        this.nivel = nivel;
+        // 2. INTEGRACIÓN DEL DEGRADADO (Igual que en Recursos)
+        PanelDegradado fondo = new PanelDegradado();
+        fondo.setLayout(new java.awt.BorderLayout());
+
+        // Hacemos transparente el panel de NetBeans
+        jPanel1.setOpaque(false);
+
+        // Agregamos jPanel1 al fondo degradado
+        fondo.add(jPanel1, java.awt.BorderLayout.CENTER);
+
+        // Reemplazamos el contenido del panel principal
+        this.setLayout(new java.awt.BorderLayout());
+        this.removeAll();
+        this.add(fondo, java.awt.BorderLayout.CENTER);
+
+        this.revalidate();
+        this.repaint();
+
+        // 3. ESTILOS Y DISTRIBUCIÓN
+        aplicarEstilosModernos();
+        corregirDistribucion(); // Acomoda los campos matemáticamente
         
+        limpiarCampos();
+        habilitarCampos(false);
+
     }
+    
+    private void aplicarEstilosModernos() {
+        // Colores y Fuentes
+        Color colorTexto = new Color(31, 78, 95); // Azul Petróleo
+        Font fuenteTitulo = new Font("Segoe UI", Font.BOLD, 24);
+        Font fuenteLabels = new Font("Segoe UI", Font.BOLD, 14);
+        Font fuenteCampos = new Font("Segoe UI", Font.PLAIN, 14);
+
+        // 1. Título
+        jLabel1.setFont(fuenteTitulo);
+        jLabel1.setForeground(colorTexto);
+        jLabel1.setText("GESTIÓN DE PROMOCIONES");
+        jLabel1.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // 2. Etiquetas (Labels)
+        javax.swing.JLabel[] labels = {jLabel2, jLabel3, jLabel4, jLabel5};
+        String[] textos = {"ID", "Descripción", "Tipo", "Condición (Horas)"};
+
+        for (int i = 0; i < labels.length; i++) {
+            labels[i].setFont(fuenteLabels);
+            labels[i].setForeground(colorTexto);
+            labels[i].setText(textos[i]); // Corregimos textos
+        }
+
+        // 3. Campos de Texto
+        javax.swing.JTextField[] campos = {txtId, txtDescripcion, txtTipo, txtCondicion};
+        javax.swing.border.Border bordeCampo = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        );
+
+        for (javax.swing.JTextField txt : campos) {
+            txt.setFont(fuenteCampos);
+            txt.setBorder(bordeCampo);
+        }
+
+        // 4. Botones
+        javax.swing.JButton[] botones = {btnNuevo, btnBuscar, btnEditar, btnEliminar, btnGrabar, btnVerPromos};
+        for (javax.swing.JButton btn : botones) {
+            estilizarBoton(btn);
+        }
+
+        // Emojis para botones
+        btnNuevo.setText("📄 Nuevo");
+        btnBuscar.setText("🔍 Buscar");
+        btnEditar.setText("✏️ Editar");
+        btnEliminar.setText("🗑️ Eliminar");
+        btnGrabar.setText("💾 Guardar");
+        btnVerPromos.setText("📋 Ver Lista");
+    }
+
+    private void estilizarBoton(javax.swing.JButton btn) {
+        btn.setFont(new Font("Segoe UI Emoji", Font.BOLD, 12));
+        btn.setForeground(new Color(31, 78, 95));
+        btn.setBackground(Color.WHITE);
+        btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+    }
+
+    private void corregirDistribucion() {
+       // Desactivar layout automático
+        jPanel1.setLayout(null);
+
+        // 1. TÍTULO
+        jLabel1.setBounds(0, 20, 640, 40);
+
+       
+
+        // 2. FORMULARIO
+        int xLabel = 40;
+        int xInput = 180;
+        int anchoInput = 400;
+        int alto = 30;
+        int y = 90;     // Altura inicial
+        int gap = 50;   // Separación entre filas
+
+        // Fila 1: ID
+        jLabel2.setBounds(xLabel, y, 120, alto);
+        txtId.setBounds(xInput, y, 150, alto);
+
+        // Fila 2: Descripción
+        y += gap; // 140
+        jLabel3.setBounds(xLabel, y, 120, alto);
+        txtDescripcion.setBounds(xInput, y, anchoInput, alto);
+
+        // Fila 3: Tipo
+        y += gap; // 190
+        jLabel4.setBounds(xLabel, y, 120, alto);
+        txtTipo.setBounds(xInput, y, anchoInput, alto);
+
+        // Fila 4: Condición (Termina en Y=240 + 30 = 270)
+        y += gap; // 240
+        jLabel5.setBounds(xLabel, y, 140, alto);
+        txtCondicion.setBounds(xInput, y, 100, alto);
+
+        // --- 3. LÍNEA SEPARADORA (FORMULARIO / BOTONES) ---
+        javax.swing.JPanel lineaSeparadora = new javax.swing.JPanel();
+        lineaSeparadora.setBackground(new java.awt.Color(31, 78, 95)); // Azul Petróleo
+        // La ponemos en Y=295 (El hueco perfecto entre el form y los botones)
+        lineaSeparadora.setBounds(30, 295, 580, 2); 
+        jPanel1.add(lineaSeparadora);
+        // --------------------------------------------------
+
+        // 4. BOTONES (Los subimos a Y=320 para acercarlos a la línea)
+        int yBtn = 320; 
+        int xBtn = 30;
+        int wBtn = 105;
+        int gapBtn = 10;
+
+        btnNuevo.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + gapBtn;
+        
+        btnBuscar.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + gapBtn;
+        
+        btnEditar.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + gapBtn;
+        
+        btnEliminar.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + gapBtn;
+        
+        btnGrabar.setBounds(xBtn, yBtn, wBtn, 35);
+
+        // Botón Ver Lista (Un poco más abajo)
+        btnVerPromos.setBounds(480, 400, 120, 35);
+    }
+
     private void limpiarCampos() {
         txtId.setText("");
         txtTipo.setText("");
@@ -38,11 +196,21 @@ public class PanelPromociones extends javax.swing.JPanel {
     }
 
     private void habilitarCampos(boolean habilitar) {
-        txtId.setEditable(habilitar);
-        txtTipo.setEnabled(habilitar);
-        txtDescripcion.setEnabled(habilitar);
-        txtCondicion.setEnabled(habilitar);
-       
+        Color colorFondo = habilitar ? Color.WHITE : new Color(245, 245, 245);
+
+        // El ID siempre bloqueado visualmente (lo maneja el sistema o la búsqueda)
+        txtId.setEditable(false);
+        txtId.setBackground(new Color(230, 230, 230));
+
+        txtTipo.setEditable(habilitar);
+        txtTipo.setBackground(colorFondo);
+
+        txtDescripcion.setEditable(habilitar);
+        txtDescripcion.setBackground(colorFondo);
+
+        txtCondicion.setEditable(habilitar);
+        txtCondicion.setBackground(colorFondo);
+
     }
 
     /**
@@ -241,183 +409,163 @@ public class PanelPromociones extends javax.swing.JPanel {
     }//GEN-LAST:event_btnVerPromosActionPerformed
 
     private void btnNuevoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNuevoActionPerformed
-       if(nivel.equalsIgnoreCase("administrador")){
-          txtId.setEnabled(false);
-       limpiarCampos();
-       modo="nuevo";
-        habilitarCampos(true);
-      }else{
-          JOptionPane.showMessageDialog(null, "opcion solo para administradores");
-      }
+       if (nivel.equalsIgnoreCase("administrador")) {
+            limpiarCampos();
+            modo = "nuevo";
+            habilitarCampos(true);
+            txtId.setText("(Automático)"); // Feedback visual
+        } else {
+            JOptionPane.showMessageDialog(this, "Opción solo para administradores.");
+        }
     }//GEN-LAST:event_btnNuevoActionPerformed
     
     private void buscarPromo(String idBuscar) {
-        if (idBuscar == null || idBuscar.trim().isEmpty()) {
-            return;
-        }
-
         try {
             String sql = "SELECT * FROM Promocion WHERE idPromocion = ?";
             PreparedStatement ps = conexion.prepareStatement(sql);
-            ps.setString(1, idBuscar.trim());
+            ps.setString(1, idBuscar);
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
                 txtId.setText(rs.getString("idPromocion"));
                 txtDescripcion.setText(rs.getString("descripcion"));
                 txtTipo.setText(rs.getString("tipo"));
-                txtCondicion.setText(rs.getString("condicionHoras"));
+                txtCondicion.setText(String.valueOf(rs.getInt("condicionHoras")));
+
                 habilitarCampos(false);
-               
-
-                JOptionPane.showMessageDialog(this, "promocion encontrado. Ahora puede editarlo.");
+                modo = null; // Reseteamos modo para evitar ediciones accidentales
+                JOptionPane.showMessageDialog(this, "Promoción encontrada.");
             } else {
-                JOptionPane.showMessageDialog(this, "No se encontró la promocion con ese ID.", "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No se encontró la promoción.", "Aviso", JOptionPane.WARNING_MESSAGE);
             }
-
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al buscar promocion: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error SQL: " + e.getMessage());
         }
     }
     private void btnBuscarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarActionPerformed
-       String promoBuscada = javax.swing.JOptionPane.showInputDialog(this, "Ingrese el ID de la promocion a buscar (ej: P001)");
-        if (promoBuscada != null) {
+       String promoBuscada = JOptionPane.showInputDialog(this, "Ingrese el ID de la promoción (ej: P001)");
+        if (promoBuscada != null && !promoBuscada.trim().isEmpty()) {
             buscarPromo(promoBuscada.trim());
         }
     }//GEN-LAST:event_btnBuscarActionPerformed
 
     private void btnEditarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarActionPerformed
-        if (nivel.equalsIgnoreCase("administrador")) {
+       if (nivel.equalsIgnoreCase("administrador")) {
+            // CORRECCIÓN IMPORTANTE: Validar que haya algo cargado
+            if (txtId.getText().isEmpty() || txtId.getText().equals("(Automático)")) {
+                JOptionPane.showMessageDialog(this, "Primero busque una promoción para editar.");
+                return;
+            }
+            
             habilitarCampos(true);
-            txtId.setEnabled(false);
             modo = "edicion";
         } else {
-            JOptionPane.showMessageDialog(null, "opcion solo para administradores");
+            JOptionPane.showMessageDialog(this, "Opción solo para administradores.");
         }
     }//GEN-LAST:event_btnEditarActionPerformed
 
     private void btnEliminarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarActionPerformed
-        if (nivel.equalsIgnoreCase("administrador")) {
+        if (!nivel.equalsIgnoreCase("administrador")) {
+            JOptionPane.showMessageDialog(this, "Acceso denegado.");
+            return;
+        }
 
-            String idEliminar = JOptionPane.showInputDialog(this, "Ingrese el ID de la promocion a eliminar (ej: P001):");
+        String idEliminar = JOptionPane.showInputDialog(this, "Ingrese ID a eliminar:");
+        if (idEliminar == null || idEliminar.trim().isEmpty()) {
+            return;
+        }
 
-            // Validar entrada
-            if (idEliminar == null || idEliminar.trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Debe ingresar un ID de recurso válido.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+        int confirm = JOptionPane.showConfirmDialog(this, "¿Seguro de eliminar " + idEliminar + "?");
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            // Verificar existencia primero
+            String sqlCheck = "SELECT COUNT(*) FROM Promocion WHERE idPromocion = ?";
+            PreparedStatement psCheck = conexion.prepareStatement(sqlCheck);
+            psCheck.setString(1, idEliminar);
+            ResultSet rs = psCheck.executeQuery();
+            rs.next();
+
+            if (rs.getInt(1) == 0) {
+                JOptionPane.showMessageDialog(this, "Ese ID no existe.");
                 return;
             }
 
-            // Confirmación
-            int confirmar = JOptionPane.showConfirmDialog(this,
-                    "¿Está seguro que desea eliminar la promocion con ID " + idEliminar + "?",
-                    "Confirmar eliminación",
-                    JOptionPane.YES_NO_OPTION);
+            // Eliminar
+            String sqlDel = "DELETE FROM Promocion WHERE idPromocion = ?";
+            PreparedStatement psDel = conexion.prepareStatement(sqlDel);
+            psDel.setString(1, idEliminar);
+            psDel.executeUpdate();
 
-            if (confirmar != JOptionPane.YES_OPTION) {
-                return; // usuario canceló
-            }
+            JOptionPane.showMessageDialog(this, "Eliminado correctamente.");
+            limpiarCampos(); // Por si estaba mostrándose en pantalla
 
-            try {
-                // Verificar si existe el recurso antes de eliminarlo
-                String sqlCheck = "SELECT COUNT(*) FROM Promocion WHERE idPromocion = ?";
-                PreparedStatement psCheck = conexion.prepareStatement(sqlCheck);
-                psCheck.setString(1, idEliminar.trim());
-                ResultSet rs = psCheck.executeQuery();
-                rs.next();
-                int count = rs.getInt(1);
-
-                if (count == 0) {
-                    JOptionPane.showMessageDialog(this, "No existe ninguna Promocion con el ID especificado.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                // Eliminar registro
-                String sqlDelete = "DELETE FROM Promocion WHERE idPromocion = ?";
-                PreparedStatement psDelete = conexion.prepareStatement(sqlDelete);
-                psDelete.setString(1, idEliminar.trim());
-                int filas = psDelete.executeUpdate();
-
-                if (filas > 0) {
-                    JOptionPane.showMessageDialog(this, "promocion eliminada correctamente.");
-                    limpiarCampos();
-                    habilitarCampos(false);
-                    modo = null;
-                } else {
-                    JOptionPane.showMessageDialog(this, "No se pudo eliminar el la promocion.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-
-            } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this, "Error al eliminar promocion: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } else {
-            JOptionPane.showMessageDialog(null, "opcion solo para administradores");
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error al eliminar: " + e.getMessage());
         }
     }//GEN-LAST:event_btnEliminarActionPerformed
 
     private void btnGrabarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGrabarActionPerformed
         if (modo == null) {
-            JOptionPane.showMessageDialog(this, "Seleccione primero si es un registro nuevo o edición.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Seleccione 'Nuevo' o 'Editar' primero.");
             return;
         }
 
-        // --- Validaciones ---
-        if (txtDescripcion.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar la descripción de la promoción.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        if (txtTipo.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar el tipo de promoción.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        if (txtCondicion.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar la condición de horas.", "Error", JOptionPane.ERROR_MESSAGE);
+        // 1. Validaciones
+        if (txtDescripcion.getText().trim().isEmpty()
+                || txtTipo.getText().trim().isEmpty()
+                || txtCondicion.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Todos los campos son obligatorios.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
+        int condicionHoras = 0;
         try {
-            int condicion = Integer.parseInt(txtCondicion.getText().trim());
-            if (condicion <= 0) {
-                JOptionPane.showMessageDialog(this, "La condición de horas debe ser mayor que 0.", "Error", JOptionPane.ERROR_MESSAGE);
+            condicionHoras = Integer.parseInt(txtCondicion.getText().trim());
+            if (condicionHoras <= 0) {
+                JOptionPane.showMessageDialog(this, "La condición de horas debe ser mayor a 0.");
                 return;
             }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Ingrese un número válido para las horas.");
+            return;
+        }
 
-            // --- MODO NUEVO ---
-            if (modo.equalsIgnoreCase("nuevo")) {
+        // 2. Guardado
+        try {
+            if (modo.equals("nuevo")) {
                 CallableStatement cs = conexion.prepareCall("{call registrarPromocion(?, ?, ?)}");
                 cs.setString(1, txtDescripcion.getText().trim());
                 cs.setString(2, txtTipo.getText().trim());
-                cs.setInt(3, condicion);
+                cs.setInt(3, condicionHoras);
                 cs.execute();
+                JOptionPane.showMessageDialog(this, "¡Promoción registrada!");
 
-                JOptionPane.showMessageDialog(this, "Promoción registrada correctamente.");
-                limpiarCampos();
-                habilitarCampos(false);
-                modo = null;
-
-                // --- MODO EDICIÓN ---
-            } else if (modo.equalsIgnoreCase("edicion")) {
+            } else if (modo.equals("edicion")) {
                 String sql = "UPDATE Promocion SET descripcion=?, tipo=?, condicionHoras=? WHERE idPromocion=?";
                 PreparedStatement ps = conexion.prepareStatement(sql);
                 ps.setString(1, txtDescripcion.getText().trim());
                 ps.setString(2, txtTipo.getText().trim());
-                ps.setInt(3, condicion);
+                ps.setInt(3, condicionHoras);
                 ps.setString(4, txtId.getText().trim());
 
                 int filas = ps.executeUpdate();
                 if (filas > 0) {
-                    JOptionPane.showMessageDialog(this, "Promoción actualizada correctamente.");
-                    limpiarCampos();
-                    habilitarCampos(false);
-                    modo = null;
+                    JOptionPane.showMessageDialog(this, "¡Promoción actualizada!");
                 } else {
-                    JOptionPane.showMessageDialog(this, "No se encontró una promoción con el ID especificado.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "No se pudo actualizar.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
 
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Ingrese un número válido en condición de horas.", "Error", JOptionPane.ERROR_MESSAGE);
+            // Limpieza final
+            limpiarCampos();
+            habilitarCampos(false);
+            modo = null;
+
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(this, "Error al guardar la promoción: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error en BD: " + ex.getMessage());
         }
     }//GEN-LAST:event_btnGrabarActionPerformed
 

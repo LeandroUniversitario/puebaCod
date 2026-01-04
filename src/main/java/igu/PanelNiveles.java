@@ -4,12 +4,18 @@
  */
 package igu;
 
+import java.awt.Color;
+import java.awt.Font;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JTextField;
 
 /**
  *
@@ -24,10 +30,164 @@ public class PanelNiveles extends javax.swing.JPanel {
     public PanelNiveles(Connection conexion) {
         initComponents();
         this.conexion=conexion;
+        // --- 1. APLICAR FONDO DEGRADADO ---
+        PanelDegradado fondo = new PanelDegradado();
+        fondo.setLayout(new java.awt.BorderLayout());
+
+        // Hacemos transparente el panel de NetBeans
+        jPanel1.setOpaque(false);
+        fondo.add(jPanel1, java.awt.BorderLayout.CENTER);
+
+        // Reemplazamos en el panel principal
+        this.setLayout(new java.awt.BorderLayout());
+        this.removeAll();
+        this.add(fondo, java.awt.BorderLayout.CENTER);
+
+        this.revalidate();
+        this.repaint();
+
+        // --- 2. LÓGICA Y DISEÑO ---
+        aplicarEstilosModernos();
+        corregirDistribucion(); // Layout manual
+        
         limpiarCampos();
         habilitarCampos(false);
     }
 
+    // --- DISEÑO VISUAL ---
+    private void aplicarEstilosModernos() {
+        Color colorTexto = new Color(31, 78, 95); // Azul Petróleo
+        Font fuenteTitulo = new Font("Segoe UI", Font.BOLD, 24);
+        Font fuenteLabels = new Font("Segoe UI", Font.BOLD, 14);
+        Font fuenteCampos = new Font("Segoe UI", Font.PLAIN, 14);
+
+        // 1. Título
+        jLabel1.setFont(fuenteTitulo);
+        jLabel1.setForeground(colorTexto);
+        jLabel1.setText("GESTIÓN DE NIVELES DE ACCESO"); // Texto más formal
+
+        // 2. Labels
+        JLabel[] labels = {jLabel2, jLabel3, jLabel4};
+        String[] textos = {"ID Nivel", "Nombre Nivel", "Descripción"};
+        
+        for (int i = 0; i < labels.length; i++) {
+            labels[i].setFont(fuenteLabels);
+            labels[i].setForeground(colorTexto);
+            labels[i].setText(textos[i]);
+        }
+
+        // 3. Inputs
+        JTextField[] campos = {txtIdNivel, txtNombreNivel, txtDescripcion};
+        javax.swing.border.Border borde = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        );
+
+        for (JTextField txt : campos) {
+            txt.setFont(fuenteCampos);
+            txt.setBorder(borde);
+        }
+
+        // 4. Separador
+        jSeparator1.setForeground(new Color(31, 78, 95));
+        jSeparator1.setBackground(new Color(31, 78, 95));
+
+        // 5. Botones
+        JButton[] botones = {btnNuevo, btnBuscar, btnEditar, btnEliminar, btnGrabar};
+        for (JButton btn : botones) {
+            estilizarBoton(btn);
+        }
+        
+        // Emojis y Textos
+        btnNuevo.setText("📄 Nuevo");
+        btnBuscar.setText("🔍"); // Icono solo para ID
+        btnEditar.setText("✏️ Editar");
+        btnEliminar.setText("🗑️ Eliminar");
+        btnGrabar.setText("💾 Guardar");
+        
+        btnBuscar.setToolTipText("Buscar Nivel por ID");
+    }
+
+    private void estilizarBoton(JButton btn) {
+        btn.setFont(new Font("Segoe UI Emoji", Font.BOLD, 12));
+        btn.setForeground(new Color(31, 78, 95));
+        btn.setBackground(Color.WHITE);
+        btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+    }
+
+    private void corregirDistribucion() {
+        jPanel1.setLayout(null); // Layout manual
+
+        // Título
+        jLabel1.setBounds(0, 30, 640, 40);
+
+        // Coordenadas base
+        int xLabel = 50;
+        int xInput = 180;
+        int wInput = 350;
+        int h = 35; // Altura estándar
+        int y = 100;
+        int gap = 50; // Separación vertical
+
+        // Fila 1: ID + Botón Buscar
+        jLabel2.setBounds(xLabel, y, 120, h);
+        txtIdNivel.setBounds(xInput, y, 120, h); // ID corto
+        btnBuscar.setBounds(xInput + 130, y, 50, h); // Lupa al lado
+
+        // Fila 2: Nombre
+        y += gap;
+        jLabel3.setBounds(xLabel, y, 120, h);
+        txtNombreNivel.setBounds(xInput, y, wInput, h);
+
+        // Fila 3: Descripción
+        y += gap;
+        jLabel4.setBounds(xLabel, y, 120, h);
+        txtDescripcion.setBounds(xInput, y, wInput, h);
+
+        // Separador
+        y += gap + 20;
+        jSeparator1.setBounds(30, y, 580, 10);
+
+        // Botones (Abajo)
+        int yBtn = y + 30;
+        int xBtn = 60;
+        int wBtn = 110;
+        
+        btnNuevo.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + 20;
+        btnEditar.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + 20;
+        btnEliminar.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + 20;
+        btnGrabar.setBounds(xBtn, yBtn, wBtn, 35);
+    }
+    
+    // --- LÓGICA DE NEGOCIO ---
+
+    private void limpiarCampos() {
+        txtIdNivel.setText("");
+        txtNombreNivel.setText("");
+        txtDescripcion.setText("");
+    }
+
+    private void habilitarCampos(boolean habilitar) {
+        Color colorFondo = habilitar ? Color.WHITE : new Color(245, 245, 245);
+        
+        txtIdNivel.setEditable(false);
+        txtIdNivel.setBackground(new Color(230, 230, 230)); // Gris claro fijo
+
+        txtNombreNivel.setEditable(habilitar);
+        txtNombreNivel.setBackground(colorFondo);
+
+        txtDescripcion.setEditable(habilitar);
+        txtDescripcion.setBackground(colorFondo);
+    }
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -172,38 +332,43 @@ public class PanelNiveles extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnNuevoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNuevoActionPerformed
-        limpiarCampos();
+       limpiarCampos();
         habilitarCampos(true);
         modo = "nuevo";
+        txtIdNivel.setText("(Auto)"); // Feedback visual
     }//GEN-LAST:event_btnNuevoActionPerformed
 
     private void btnBuscarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarActionPerformed
-          String id = JOptionPane.showInputDialog(this, "Ingrese el ID del nivel a buscar (Ejemplo: N001):");
-        if (id == null || id.trim().isEmpty()) return;
+        String id = JOptionPane.showInputDialog(this, "Ingrese ID Nivel (Ej: N001):");
+        if (id == null || id.trim().isEmpty()) {
+            return;
+        }
 
-        id = id.trim().toUpperCase();
+        limpiarCampos();
 
         try (PreparedStatement ps = conexion.prepareStatement("SELECT * FROM Nivel WHERE idNivel = ?")) {
-            ps.setString(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    txtIdNivel.setText(rs.getString("idNivel"));
-                    txtNombreNivel.setText(rs.getString("nombreNivel"));
-                    txtDescripcion.setText(rs.getString("descripcion"));
-                    habilitarCampos(false);
-                    JOptionPane.showMessageDialog(this, "Nivel encontrado correctamente.");
-                } else {
-                    JOptionPane.showMessageDialog(this, "No se encontró ningún nivel con el ID: " + id);
-                }
+            ps.setString(1, id.trim().toUpperCase());
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                txtIdNivel.setText(rs.getString("idNivel"));
+                txtNombreNivel.setText(rs.getString("nombreNivel"));
+                txtDescripcion.setText(rs.getString("descripcion"));
+
+                habilitarCampos(false);
+                modo = "consulta"; // Evita ediciones accidentales
+                JOptionPane.showMessageDialog(this, "Nivel encontrado.");
+            } else {
+                JOptionPane.showMessageDialog(this, "Nivel no encontrado.");
             }
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al buscar nivel: " + e.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error SQL: " + e.getMessage());
         }
     }//GEN-LAST:event_btnBuscarActionPerformed
 
     private void btnEditarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarActionPerformed
-         if (txtIdNivel.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Primero debe buscar un nivel para editar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        if (txtIdNivel.getText().isEmpty() || txtIdNivel.getText().equals("(Auto)")) {
+            JOptionPane.showMessageDialog(this, "Busque un nivel primero.");
             return;
         }
         habilitarCampos(true);
@@ -212,113 +377,75 @@ public class PanelNiveles extends javax.swing.JPanel {
 
     private void btnEliminarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarActionPerformed
         String id = txtIdNivel.getText().trim();
-        if (id.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Ingrese o busque un nivel antes de eliminar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        if (id.isEmpty() || id.equals("(Auto)")) {
+            JOptionPane.showMessageDialog(this, "Busque un nivel para eliminar.");
             return;
         }
 
-        int confirmar = JOptionPane.showConfirmDialog(this, "¿Desea eliminar el nivel " + id + "?", "Confirmar eliminación", JOptionPane.YES_NO_OPTION);
-        if (confirmar != JOptionPane.YES_OPTION) {
-            return;
-        }
-
-        try (PreparedStatement ps = conexion.prepareStatement("DELETE FROM Nivel WHERE idNivel = ?")) {
-            ps.setString(1, id);
-            int filas = ps.executeUpdate();
-
-            if (filas > 0) {
-                JOptionPane.showMessageDialog(this, "Nivel eliminado correctamente.");
-                limpiarCampos();
-            } else {
-                JOptionPane.showMessageDialog(this, "No se encontró el nivel a eliminar.", "Error", JOptionPane.ERROR_MESSAGE);
+        if (JOptionPane.showConfirmDialog(this, "¿Eliminar nivel " + id + "?") == JOptionPane.YES_OPTION) {
+            try (PreparedStatement ps = conexion.prepareStatement("DELETE FROM Nivel WHERE idNivel = ?")) {
+                ps.setString(1, id);
+                if (ps.executeUpdate() > 0) {
+                    JOptionPane.showMessageDialog(this, "Eliminado correctamente.");
+                    limpiarCampos();
+                    modo = null;
+                } else {
+                    JOptionPane.showMessageDialog(this, "No se pudo eliminar.");
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             }
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al eliminar nivel: " + e.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_btnEliminarActionPerformed
 
     private void btnGrabarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGrabarActionPerformed
-        String nombre = txtNombreNivel.getText().trim();
-        String descripcion = txtDescripcion.getText().trim();
-
-        // Validaciones básicas
-        if (nombre.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar un nombre de nivel.", "Campo requerido", JOptionPane.WARNING_MESSAGE);
+       if (modo == null || modo.isEmpty() || modo.equals("consulta")) {
+            JOptionPane.showMessageDialog(this, "Use 'Nuevo' o 'Editar' primero.");
             return;
         }
 
-        if (descripcion.length() < 3) {
-            JOptionPane.showMessageDialog(this, "La descripción debe tener al menos 3 caracteres.", "Campo requerido", JOptionPane.WARNING_MESSAGE);
+        // Validaciones
+        if (txtNombreNivel.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Ingrese el nombre del nivel.");
+            return;
+        }
+        if (txtDescripcion.getText().trim().length() < 3) {
+            JOptionPane.showMessageDialog(this, "Descripción muy corta.");
             return;
         }
 
         try {
-            if ("nuevo".equalsIgnoreCase(modo)) {
-                // Llama al procedimiento registrarNivel
-                try (CallableStatement cs = conexion.prepareCall("{ call dbo.registrarNivel(?, ?, ?) }")) {
-                    cs.setString(1, nombre);
-                    cs.setString(2, descripcion);
-                    cs.registerOutParameter(3, java.sql.Types.CHAR);
-                    cs.execute();
+            if (modo.equals("nuevo")) {
+                CallableStatement cs = conexion.prepareCall("{ call dbo.registrarNivel(?, ?, ?) }");
+                cs.setString(1, txtNombreNivel.getText().trim());
+                cs.setString(2, txtDescripcion.getText().trim());
+                cs.registerOutParameter(3, java.sql.Types.CHAR);
+                cs.execute();
+                
+                String nuevoId = cs.getString(3);
+                txtIdNivel.setText(nuevoId);
+                JOptionPane.showMessageDialog(this, "Nivel creado: " + nuevoId);
 
-                    String nuevoId = cs.getString(3);
-                    txtIdNivel.setText(nuevoId);
-                    JOptionPane.showMessageDialog(this, "Nivel registrado correctamente con ID: " + nuevoId);
-                }
-
-            } else if ("edicion".equalsIgnoreCase(modo)) {
-                String id = txtIdNivel.getText().trim();
-                if (id.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, "Primero busque un nivel antes de editar.", "Error", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
+            } else if (modo.equals("edicion")) {
                 String sql = "UPDATE Nivel SET nombreNivel=?, descripcion=? WHERE idNivel=?";
-                try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-                    ps.setString(1, nombre);
-                    ps.setString(2, descripcion);
-                    ps.setString(3, id);
-                    int filas = ps.executeUpdate();
-
-                    if (filas > 0) {
-                        JOptionPane.showMessageDialog(this, "Nivel actualizado correctamente.");
-                    } else {
-                        JOptionPane.showMessageDialog(this, "No se encontró el nivel a actualizar.", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-
-            } else {
-                JOptionPane.showMessageDialog(this, "Debe seleccionar 'Nuevo' o 'Editar' antes de grabar.", "Modo no definido", JOptionPane.WARNING_MESSAGE);
-                return;
+                PreparedStatement ps = conexion.prepareStatement(sql);
+                ps.setString(1, txtNombreNivel.getText().trim());
+                ps.setString(2, txtDescripcion.getText().trim());
+                ps.setString(3, txtIdNivel.getText().trim());
+                
+                if (ps.executeUpdate() > 0) JOptionPane.showMessageDialog(this, "Actualizado correctamente.");
+                else JOptionPane.showMessageDialog(this, "Error al actualizar.");
             }
 
-           
             habilitarCampos(false);
-            
+            modo = "consulta";
 
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al grabar nivel: " + e.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error BD: " + e.getMessage());
         }
     }//GEN-LAST:event_btnGrabarActionPerformed
 
-     private void limpiarCampos() {
-
-        txtIdNivel.setText("");
-        txtNombreNivel.setText("");
-        txtDescripcion.setText("");
-        
-       
-
-    }
     
-
-
-    private void habilitarCampos(boolean habilitar) {
-       txtIdNivel.setEditable(false);
-       txtNombreNivel.setEditable(habilitar);
-       txtDescripcion.setEditable(habilitar);
-    }
-
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnBuscar;

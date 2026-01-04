@@ -14,7 +14,6 @@ import java.sql.SQLException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import javax.swing.JOptionPane;
-import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import logica.Recurso;
 
@@ -35,41 +34,48 @@ public class PanelAlquiler extends javax.swing.JPanel {
         this.conexion = conexion;
         this.idUsuario = idUsuario;
         initComponents();
-        
+        // --- 1. DISEÑO DEGRADADO ---
         PanelDegradado fondo = new PanelDegradado();
-
-        // MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
         fondo.setLayout(new java.awt.BorderLayout());
-
-        // Pasar jPanel1 dentro del panel degradado
         jPanel1.setOpaque(false);
         fondo.add(jPanel1, BorderLayout.CENTER);
-
-        // Ahora reemplazas en el contenedor padre
         remove(jPanel1);
         add(fondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
-
-        // refrescar
         revalidate();
         repaint();
         
+        ((javax.swing.JTextField) jDateChooserFecha.getDateEditor().getUiComponent()).setEditable(false);
+        
+         configurarEstiloVisual2();
+         reestructurarLayout();
+        // --- 2. CONFIGURACIÓN TABLA Y EVENTOS ---
         jSpinnerHorasUsadas.addChangeListener(e -> calcularSubtotalAutomatico());
-          // ocultarColumna(0);
-        ocultarColumna(1);
-       
 
-      
+        // Configurar modelo de tabla con las NUEVAS columnas
+        tblDetalles.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {},
+            new String [] {
+                "Id detalle", "re", "id recurso", "nombre", "precio hora", "horas", "sub", "Estado", "Mora"
+            }
+        ));
+
+        // Ocultar columnas internas
+        ocultarColumna(0); // Id Detalle
+        ocultarColumna(1); // Objeto Recurso
+
         txtIdVendedor.setText(idUsuario);
         habilitarCampos(false);
         tblDetalles.getTableHeader().setReorderingAllowed(false);
         tblDetalles.setDefaultEditor(Object.class, null);
-          cargarPromociones();
-          cargarRecursos();
+        
+        cargarPromociones();
+        cargarRecursos();
+      
 
     }
 
     private void ocultarColumna(int index) {
-        tblDetalles.getColumnModel().getColumn(index).setMinWidth(0);
+         tblDetalles.getColumnModel().getColumn(index).setMinWidth(0);
         tblDetalles.getColumnModel().getColumn(index).setMaxWidth(0);
         tblDetalles.getColumnModel().getColumn(index).setWidth(0);
     }
@@ -216,73 +222,47 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
     }
 
-    private void calcularDuracion() {
-        try {
-            int horasUsadas = (int) jSpinnerHorasUsadas.getValue();
-
-            // Obtener la duración actual (0 si está vacío)
-            int duracionActual = txtDuracion.getText().isEmpty() ? 0 : Integer.parseInt(txtDuracion.getText());
-
-            // La duración debe ser la MAYOR entre las horas de los detalles
-            int nuevaDuracion = Math.max(duracionActual, horasUsadas);
-            txtDuracion.setText(String.valueOf(nuevaDuracion));
-
-            // Actualizar hora final en base a la mayor duración
-            String horaInicialTexto = txtHora.getText().trim();
-            if (!horaInicialTexto.isEmpty()) {
-
-                // Normalizar formato proveniente de SQL
-                if (horaInicialTexto.contains(".")) {
-                    horaInicialTexto = horaInicialTexto.substring(0, horaInicialTexto.indexOf("."));
-                }
-
-                // Ajustar patrón del formato
-                java.time.format.DateTimeFormatter formato
-                        = horaInicialTexto.length() > 5
-                        ? java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
-                        : java.time.format.DateTimeFormatter.ofPattern("HH:mm");
-
-                java.time.LocalTime horaInicial = java.time.LocalTime.parse(horaInicialTexto, formato);
-                java.time.LocalTime horaFinal = horaInicial.plusHours(nuevaDuracion);
-
-                // Mostrar en HH:mm
-                txtHoraFin.setText(
-                        horaFinal.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
-                );
-            }
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al actualizar duración: " + e.getMessage());
-        }
-    }
+    
 
     
     private void habilitarCampos(boolean habilitar) {
+        // 1. Botones básicos
         btnAgregarRe.setEnabled(habilitar);
-        btnEliminarRe.setEnabled(habilitar);
         btnBuscarTuri.setEnabled(habilitar);
+
+        // 2. ComboBoxes y Fechas
         jComboBoxRecursos.setEnabled(habilitar);
+        jDateChooserFecha.setEnabled(habilitar);
+        jComboBoxEstado.setEnabled(habilitar);
+        jComboBoxPromos.setEnabled(false); // Promo suele ser auto, mejor bloqueado
+        jSpinnerHorasUsadas.setEnabled(habilitar);
+
+        // 3. Campos de Texto (Bloqueados siempre o según lógica)
         txtIdAlquiler.setEditable(false);
         txtHoraFin.setEditable(false);
         txtIdTurista.setEditable(false);
         txtIdVendedor.setEditable(false);
-        txtNombreTuri.setEditable(false); // se llena automáticamente al buscar
-         // igual
+        txtNombreTuri.setEditable(false);
         txtDuracion.setEditable(false);
-        txtHora.setEditable(habilitar);
-        txtPrecioHora.setEditable(false); // lo define el recurso
+        txtPrecioHora.setEditable(false);
         txtSub.setEditable(false);
         txtTotal.setEditable(false);
-        
-        // DateChooser
-        jDateChooserFecha.setEnabled(habilitar);
 
-        // ComboBoxes
-        jComboBoxEstado.setEnabled(habilitar);
-        jComboBoxPromos.setEnabled(false);
+        // La hora solo se edita si está habilitado
+        txtHora.setEditable(habilitar);
 
-        // Spinner
-        jSpinnerHorasUsadas.setEnabled(habilitar);
+        // 🔴 4. LÓGICA ESPECIAL DE BOTONES 🔴
+        // ELIMINAR FILA: Se permite en 'Nuevo' (para corregir errores) 
+        // y en 'Edición' (solo para cancelar ítems no guardados, aunque tu código ya protege los devueltos)
+        btnEliminarRe.setEnabled(habilitar);
+
+        // DEVOLVER ÍTEM: EXCLUSIVO de Modo Edición
+        // Solo se activa si estamos habilitados Y el modo es "edicion"
+        if (habilitar && "edicion".equals(modo)) {
+            btnDevolverItem.setEnabled(true);
+        } else {
+            btnDevolverItem.setEnabled(false);
+        }
     }
 
 
@@ -339,6 +319,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         lblHoraFin = new javax.swing.JLabel();
         txtHoraFin = new javax.swing.JTextField();
         jComboBoxRecursos = new javax.swing.JComboBox<>();
+        btnDevolverItem = new javax.swing.JButton();
 
         setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
@@ -367,6 +348,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         lblNombreTuri.setText("Nombre Turista");
 
         btnBuscarTuri.setText("buscar");
+        btnBuscarTuri.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btnBuscarTuri.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnBuscarTuriActionPerformed(evt);
@@ -398,6 +380,12 @@ public class PanelAlquiler extends javax.swing.JPanel {
         lblDuracion.setForeground(new java.awt.Color(0, 0, 0));
         lblDuracion.setText("Duracion");
 
+        txtDuracion.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtDuracionActionPerformed(evt);
+            }
+        });
+
         lblPromo.setForeground(new java.awt.Color(0, 0, 0));
         lblPromo.setText("Promocion");
 
@@ -428,6 +416,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         lblSubtotal.setText("subtotal");
 
         btnAgregarRe.setText("agregar");
+        btnAgregarRe.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btnAgregarRe.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnAgregarReActionPerformed(evt);
@@ -435,6 +424,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         });
 
         btnEliminarRe.setText("eliminar");
+        btnEliminarRe.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btnEliminarRe.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnEliminarReActionPerformed(evt);
@@ -480,6 +470,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
         });
 
         btnVerAlquileres.setText("ver Alquileres");
+        btnVerAlquileres.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         btnVerAlquileres.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnVerAlquileresActionPerformed(evt);
@@ -492,6 +483,14 @@ public class PanelAlquiler extends javax.swing.JPanel {
         jComboBoxRecursos.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jComboBoxRecursosActionPerformed(evt);
+            }
+        });
+
+        btnDevolverItem.setText("Devolver ");
+        btnDevolverItem.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btnDevolverItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnDevolverItemActionPerformed(evt);
             }
         });
 
@@ -511,9 +510,9 @@ public class PanelAlquiler extends javax.swing.JPanel {
                         .addGap(16, 16, 16)
                         .addComponent(jSeparator1))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGap(27, 27, 27)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGap(40, 40, 40)
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(lblIdAlquiler, javax.swing.GroupLayout.PREFERRED_SIZE, 66, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(lblIdTurista)
@@ -545,32 +544,24 @@ public class PanelAlquiler extends javax.swing.JPanel {
                                 .addGap(42, 42, 42)
                                 .addComponent(btnBuscarTuri, javax.swing.GroupLayout.PREFERRED_SIZE, 96, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGap(27, 27, 27)
                                 .addComponent(lblTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(18, 18, 18)
                                 .addComponent(txtTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 99, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(18, 18, 18)
                                 .addComponent(btnNuevo, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(11, 11, 11)
-                                .addComponent(btnBuscarAlquiler, javax.swing.GroupLayout.PREFERRED_SIZE, 77, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(btnEditar, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addGap(27, 27, 27)
+                                .addComponent(btnBuscarAlquiler, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(18, 18, 18)
+                                .addComponent(btnEditar, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(18, 18, 18)
                                 .addComponent(btnEliminarAlquiler, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addGap(18, 18, 18)
                                 .addComponent(btnGrabar, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(0, 14, Short.MAX_VALUE)))
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(32, 32, 32)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(btnAgregarRe, javax.swing.GroupLayout.PREFERRED_SIZE, 92, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(100, 100, 100)
-                        .addComponent(btnEliminarRe, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(btnVerAlquileres, javax.swing.GroupLayout.PREFERRED_SIZE, 133, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(20, 20, 20))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(lblPrecioHora, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -585,13 +576,22 @@ public class PanelAlquiler extends javax.swing.JPanel {
                                 .addComponent(txtSub, javax.swing.GroupLayout.PREFERRED_SIZE, 115, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addContainerGap(268, Short.MAX_VALUE))
                             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                                .addGap(0, 0, Short.MAX_VALUE)
-                                .addComponent(jComboBoxRecursos, javax.swing.GroupLayout.PREFERRED_SIZE, 314, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 15, Short.MAX_VALUE)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jComboBoxRecursos, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 314, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(btnDevolverItem, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 106, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addGap(30, 30, 30)
                                 .addComponent(lblHorasUsadas)
                                 .addGap(18, 18, 18)
                                 .addComponent(jSpinnerHorasUsadas, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(46, 46, 46))))))
+                                .addGap(46, 46, 46))))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(btnAgregarRe, javax.swing.GroupLayout.PREFERRED_SIZE, 106, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(50, 50, 50)
+                        .addComponent(btnEliminarRe, javax.swing.GroupLayout.PREFERRED_SIZE, 106, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(btnVerAlquileres, javax.swing.GroupLayout.PREFERRED_SIZE, 133, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(19, 19, 19))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -645,16 +645,13 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     .addComponent(lblSubtotal)
                     .addComponent(txtPrecioHora, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(lblPrecioHora))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addComponent(btnVerAlquileres)
-                        .addGap(18, 18, 18))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(btnAgregarRe)
-                            .addComponent(btnEliminarRe))
-                        .addGap(8, 8, 8)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 16, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnAgregarRe)
+                    .addComponent(btnEliminarRe)
+                    .addComponent(btnDevolverItem)
+                    .addComponent(btnVerAlquileres))
+                .addGap(8, 8, 8)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -725,176 +722,184 @@ public class PanelAlquiler extends javax.swing.JPanel {
     
 
 
- 
     private void btnAgregarReActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAgregarReActionPerformed
-        if (!txtHora.getText().isEmpty()) {
+        // 1️⃣ VALIDACIÓN DE HORA (Formato HH:mm)
+        String horaInput = txtHora.getText().trim();
 
-            try {
-                // 1️⃣ Obtener el recurso seleccionado
-                Recurso r = (Recurso) jComboBoxRecursos.getSelectedItem();
-                if (r == null) {
-                    JOptionPane.showMessageDialog(this, "Debe seleccionar un recurso.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                // 🔍 1.5️⃣ VALIDAR si el recurso YA existe en la tabla
-                DefaultTableModel modeloCheck = (DefaultTableModel) tblDetalles.getModel();
-                for (int i = 0; i < modeloCheck.getRowCount(); i++) {
-                    String idTabla = modeloCheck.getValueAt(i, 1).toString(); // columna 1 = idRecurso
-                    if (idTabla.equals(r.getId())) {
-                        JOptionPane.showMessageDialog(this,
-                                "⚠️ Este recurso ya fue agregado al alquiler.\nSolo se permite una unidad por alquiler.",
-                                "Recurso duplicado",
-                                JOptionPane.WARNING_MESSAGE);
-                        return; // 🔥 NO AGREGAR
-                    }
-                }
-
-                // 2️⃣ Validar horas
-                int horasUsadas = (int) jSpinnerHorasUsadas.getValue();
-                if (horasUsadas <= 0) {
-                    JOptionPane.showMessageDialog(this, "Debe ingresar un número de horas mayor a 0.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                // 3️⃣ Validar que el recurso siga disponible
-                String sqlCheck = "SELECT estado FROM Recursos WHERE idRecursos = ?";
-                try (PreparedStatement ps = conexion.prepareStatement(sqlCheck)) {
-                    ps.setString(1, r.getId());
-                    ResultSet rs = ps.executeQuery();
-
-                    if (rs.next() && !rs.getString("estado").equalsIgnoreCase("Disponible")) {
-                        JOptionPane.showMessageDialog(this,
-                                "⚠️ Este vehículo ya no está disponible.",
-                                "No disponible",
-                                JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
-                }
-
-
-                // 4️⃣ Calcular subtotal
-                double precioHora = r.getTarifaHora();
-                double subtotal = precioHora * horasUsadas;
-                txtSub.setText(String.format("%.2f", subtotal));
-
-                // 5️⃣ Agregar fila a la tabla
-                DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
-                
-                modelo.addRow(new Object[]{
-                    "",
-                    r, // 🔹 OBJETO Recurso (columna oculta)
-                    r.getId(),
-                    r.getTipo(),
-                    precioHora,
-                    horasUsadas,
-                    subtotal
-                });
-                
-             
-                // 8️⃣ Quitar recurso del combo visualmente
-                jComboBoxRecursos.removeItem(r);
-
-                // 6️⃣ Actualizar cálculos del alquiler
-                calcularDuracion();
-                calcularTotal();
-                aplicarPromocionAutomatica();
-
-                // 7️⃣ Reset campos
-                jComboBoxRecursos.setSelectedIndex(-1);
-                txtPrecioHora.setText("");
-                jSpinnerHorasUsadas.setValue(0);
-                txtSub.setText("");
-
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error al agregar detalle:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-
-        } else {
-            JOptionPane.showMessageDialog(null, "Ingrese la hora de inicio");
-        }
-    }//GEN-LAST:event_btnAgregarReActionPerformed
-
-    private void btnEliminarReActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarReActionPerformed
-
-        int filaSeleccionada = tblDetalles.getSelectedRow();
-
-        if (filaSeleccionada == -1) {
+        // Regex: 00:00 a 23:59
+        if (horaInput.isEmpty() || !horaInput.matches("^([01]\\d|2[0-3]):[0-5]\\d$")) {
             JOptionPane.showMessageDialog(this,
-                    "Debe seleccionar una fila del detalle para eliminar.",
-                    "Advertencia",
-                    JOptionPane.WARNING_MESSAGE);
+                    "Ingrese una hora de inicio válida (Formato 24h: HH:mm).\nEjemplo: 09:30 or 14:00",
+                    "Hora inválida", JOptionPane.WARNING_MESSAGE);
+            txtHora.requestFocus();
             return;
         }
 
-        int confirmar = JOptionPane.showConfirmDialog(this,
-                "¿Está seguro de eliminar este detalle?",
-                "Confirmación",
-                JOptionPane.YES_NO_OPTION);
+        try {
+            // 2️⃣ Obtener el recurso seleccionado
+            Recurso r = (Recurso) jComboBoxRecursos.getSelectedItem();
+            if (r == null) {
+                JOptionPane.showMessageDialog(this, "Debe seleccionar un recurso.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
-        if (confirmar != JOptionPane.YES_OPTION) {
+            // 3️⃣ Validar duplicados en la tabla
+            DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
+            for (int i = 0; i < modelo.getRowCount(); i++) {
+                String idTabla = modelo.getValueAt(i, 2).toString(); // Columna 2 = idRecurso (ajustado índice visual)
+                if (idTabla.equals(r.getId())) {
+                    JOptionPane.showMessageDialog(this, "⚠️ Este recurso ya está en la lista.", "Duplicado", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+            }
+
+            // 4️⃣ Validar horas > 0
+            int horasUsadas = (int) jSpinnerHorasUsadas.getValue();
+            if (horasUsadas <= 0) {
+                JOptionPane.showMessageDialog(this, "Las horas deben ser mayor a 0.");
+                return;
+            }
+
+            // 5️⃣ Validar disponibilidad en BD (Doble check)
+            String sqlCheck = "SELECT estado FROM Recursos WHERE idRecursos = ?";
+            try (PreparedStatement ps = conexion.prepareStatement(sqlCheck)) {
+                ps.setString(1, r.getId());
+                ResultSet rs = ps.executeQuery();
+                if (rs.next() && !rs.getString("estado").equalsIgnoreCase("Disponible")) {
+                    JOptionPane.showMessageDialog(this, "⚠️ Este vehículo ya no está disponible (fue tomado por otro usuario).");
+                    cargarRecursos(); // Refrescar combo
+                    return;
+                }
+            }
+
+            // 6️⃣ Cálculos
+            double precioHora = r.getTarifaHora();
+            double subtotal = precioHora * horasUsadas;
+            txtSub.setText(String.format("%.2f", subtotal));
+
+            // 7️⃣ AGREGAR FILA (CORREGIDO: 9 COLUMNAS)
+            modelo.addRow(new Object[]{
+                "", // 0: Id Detalle (vacío porque es nuevo)
+                "", // 1: Objeto (vacío)
+                r.getId(), // 2: ID Recurso
+                r.getTipo(), // 3: Nombre/Tipo
+                precioHora, // 4: Precio
+                horasUsadas, // 5: Horas
+                subtotal, // 6: Subtotal
+                "En Uso", // 7: Estado Inicial (CORREGIDO)
+                0.00 // 8: Mora Inicial (CORREGIDO)
+            });
+
+            // 8️⃣ Limpieza y Recálculo
+            jComboBoxRecursos.removeItem(r);
+            jComboBoxRecursos.setSelectedIndex(-1);
+            txtPrecioHora.setText("");
+            jSpinnerHorasUsadas.setValue(0);
+            txtSub.setText("");
+
+            recalcularTiemposGlobales();//calcularDuracion();
+            calcularTotal();
+            aplicarPromocionAutomatica();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+        }
+    }//GEN-LAST:event_btnAgregarReActionPerformed
+
+    // Reemplaza tu antiguo calcularDuracion() con este método más robusto
+    private void recalcularTiemposGlobales() {
+        DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
+        int maxHoras = 0;
+
+        // 1. Recorremos la tabla para buscar el valor MÁXIMO real de horas
+        for (int i = 0; i < modelo.getRowCount(); i++) {
+            Object valHoras = modelo.getValueAt(i, 5); // Columna 5 = Horas pactadas
+            if (valHoras != null) {
+                try {
+                    int h = Integer.parseInt(valHoras.toString());
+                    if (h > maxHoras) {
+                        maxHoras = h;
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignorar valores no numéricos si los hubiera
+                }
+            }
+        }
+
+        // 2. Actualizamos la caja de texto con la duración real
+        txtDuracion.setText(String.valueOf(maxHoras));
+
+        // 3. Recalculamos la Hora Fin usando la Hora Inicio + MaxHoras
+        String horaInicioTexto = txtHora.getText().trim();
+
+        // Limpieza rápida del formato de hora (por si viene de SQL con .0000000)
+        if (horaInicioTexto.length() > 5) {
+            horaInicioTexto = horaInicioTexto.substring(0, 5);
+        }
+
+        if (!horaInicioTexto.isEmpty()) {
+            try {
+                java.time.LocalTime horaInicio = java.time.LocalTime.parse(horaInicioTexto);
+
+                // Si hay duración, sumamos. Si es 0, la hora fin es igual a la inicio.
+                java.time.LocalTime horaFin = horaInicio.plusHours(maxHoras);
+
+                txtHoraFin.setText(horaFin.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+
+            } catch (Exception e) {
+                // Si la hora de inicio está mal formada, no calculamos el fin
+                System.out.println("Error formato hora: " + e.getMessage());
+            }
+        }
+    }
+    
+    private void btnEliminarReActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarReActionPerformed
+        int filaSeleccionada = tblDetalles.getSelectedRow();
+
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "Debe seleccionar una fila para eliminar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // 1️⃣ VALIDACIÓN DE SEGURIDAD (Bloquear borrado de ítems devueltos)
+        try {
+            Object estadoObj = tblDetalles.getValueAt(filaSeleccionada, 7); // Columna 7 = Estado
+            if (estadoObj != null && "Devuelto".equalsIgnoreCase(estadoObj.toString())) {
+                JOptionPane.showMessageDialog(this,
+                        "⛔ No puede eliminar un vehículo que ya fue DEVUELTO.\nEsto alteraría el historial.",
+                        "Acción denegada", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        } catch (Exception e) {
+        }
+
+        // 2️⃣ Confirmación
+        if (JOptionPane.showConfirmDialog(this, "¿Eliminar este detalle?", "Confirmar", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
             return;
         }
 
         try {
             DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
-            String idRecurso = modelo.getValueAt(filaSeleccionada, 2).toString();
+            String idRecurso = modelo.getValueAt(filaSeleccionada, 2).toString(); // Columna 2 = ID Recurso
 
+            // 3️⃣ Eliminar fila visualmente
             modelo.removeRow(filaSeleccionada);
-            // 🔹 SOLO PARA EFECTO VISUAL
-            
 
-                Recurso r = obtenerRecursoPorId(idRecurso);
-
-                    jComboBoxRecursos.addItem(r);
-                
-            
-
-            // 🔹 Recalcular la duración como el valor MÁXIMO de horas en la tabla
-            int nuevaDuracion = 0;
-            for (int i = 0; i < modelo.getRowCount(); i++) {
-                int horas = Integer.parseInt(modelo.getValueAt(i, 5).toString());
-                nuevaDuracion = Math.max(nuevaDuracion, horas);
+            // 4️⃣ Restaurar al ComboBox (Visualmente)
+            Recurso r = obtenerRecursoPorId(idRecurso);
+            if (r != null) {
+                jComboBoxRecursos.addItem(r);
             }
 
-            txtDuracion.setText(String.valueOf(nuevaDuracion));
-
-            // 🔹 Recalcular total
+            // 5️⃣ RECALCULAR TODO AUTOMÁTICAMENTE 🚀
+            // Aquí usamos el método centralizado. ¡Míra cuánto código te ahorras!
+            recalcularTiemposGlobales();
             calcularTotal();
-
-            // 🔹 Recalcular hora final basado en la nueva duración máxima
-            String horaInicialTexto = txtHora.getText().trim();
-            if (!horaInicialTexto.isEmpty()) {
-
-                if (horaInicialTexto.contains(".")) {
-                    horaInicialTexto = horaInicialTexto.substring(0, horaInicialTexto.indexOf("."));
-                }
-
-                DateTimeFormatter formato = horaInicialTexto.length() > 5
-                        ? DateTimeFormatter.ofPattern("HH:mm:ss")
-                        : DateTimeFormatter.ofPattern("HH:mm");
-
-                LocalTime horaInicial = LocalTime.parse(horaInicialTexto, formato);
-                LocalTime horaFinal = horaInicial.plusHours(nuevaDuracion);
-
-                txtHoraFin.setText(
-                        horaFinal.format(DateTimeFormatter.ofPattern("HH:mm"))
-                );
-            } else {
-                txtHoraFin.setText("");
-            }
-
-            // 🔹 Reaplicar promoción automáticamente
             aplicarPromocionAutomatica();
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this,
-                    "Error al eliminar detalle: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al eliminar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-
-
     }//GEN-LAST:event_btnEliminarReActionPerformed
 
     private Recurso obtenerRecursoPorId(String idRecurso) throws SQLException {
@@ -946,8 +951,12 @@ public class PanelAlquiler extends javax.swing.JPanel {
                 txtIdTurista.setText(rs.getString("idTurista"));
                 txtIdVendedor.setText(rs.getString("idUsuario"));
                 txtDuracion.setText(String.valueOf(rs.getInt("Duracion")));
-                txtHora.setText(rs.getString("horaInicio"));
-                txtHoraFin.setText(rs.getString("horaFinal") != null ? rs.getString("horaFinal") : "");
+                
+                // --- USO DEL FORMATEADOR AQUÍ ---
+                txtHora.setText(formatearHora(rs.getString("horaInicio")));
+                txtHoraFin.setText(formatearHora(rs.getString("horaFinal")));
+                // --------------------------------
+                
                 txtTotal.setText(String.format("%.2f", rs.getDouble("total")));
                 jComboBoxEstado.setSelectedItem(rs.getString("estado"));
 
@@ -978,16 +987,18 @@ public class PanelAlquiler extends javax.swing.JPanel {
     }
 
     private void cargarDetallesAlquiler(String idAlquiler) {
-        DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
-        modelo.setRowCount(0); // limpiar la tabla antes de cargar
+       DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
+        modelo.setRowCount(0);
 
         try {
+            // Consulta actualizada con las nuevas columnas
             String sql = """
-            SELECT d.idDetalleAlquiler, d.idRecurso, r.tipo, r.tarifaHora, d.horasUsadas, d.subTotal
-            FROM DetalleAlquiler d
-            JOIN Recursos r ON d.idRecurso = r.idRecursos
-            WHERE d.idAlquiler = ?
-        """;
+                SELECT d.idDetalleAlquiler, d.idRecurso, r.tipo, r.tarifaHora, 
+                       d.horasUsadas, d.subTotal, d.estadoDetalle, d.moraGenerada
+                FROM DetalleAlquiler d
+                JOIN Recursos r ON d.idRecurso = r.idRecursos
+                WHERE d.idAlquiler = ?
+            """;
             PreparedStatement ps = conexion.prepareStatement(sql);
             ps.setString(1, idAlquiler);
             ResultSet rs = ps.executeQuery();
@@ -995,12 +1006,14 @@ public class PanelAlquiler extends javax.swing.JPanel {
             while (rs.next()) {
                 modelo.addRow(new Object[]{
                     rs.getString("idDetalleAlquiler"),
-                    "",//r 
+                    "", // Placeholder para objeto Recurso
                     rs.getString("idRecurso"),
                     rs.getString("tipo"),
                     rs.getDouble("tarifaHora"),
                     rs.getInt("horasUsadas"),
-                    rs.getDouble("subTotal")
+                    rs.getDouble("subTotal"),
+                    rs.getString("estadoDetalle"), // Nuevo: Estado
+                    rs.getDouble("moraGenerada")   // Nuevo: Mora
                 });
             }
 
@@ -1008,7 +1021,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
             aplicarPromocionAutomatica();
 
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar los detalles: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error al cargar detalles: " + e.getMessage());
         }
     }
 
@@ -1146,31 +1159,99 @@ public class PanelAlquiler extends javax.swing.JPanel {
     }//GEN-LAST:event_btnEliminarAlquilerActionPerformed
 
     private void btnGrabarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGrabarActionPerformed
+        // 1. Validar Modo
         if (modo == null || (!modo.equals("nuevo") && !modo.equals("edicion"))) {
-            JOptionPane.showMessageDialog(this,
-                    "Debe seleccionar primero 'Nuevo' o 'Editar' antes de grabar.",
-                    "Aviso", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Debe seleccionar primero 'Nuevo' o 'Editar'.", "Aviso", JOptionPane.WARNING_MESSAGE);
             return;
+        }
+
+        // 2. 🛡️ VALIDAR SELECCIONES OBLIGATORIAS (Evita el NullPointerException)
+        if (jComboBoxEstado.getSelectedItem() == null) {
+            JOptionPane.showMessageDialog(this, "⚠️ Debe seleccionar un ESTADO (ej. Reservado/Activo).", "Campo Requerido", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (jDateChooserFecha.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "⚠️ Debe seleccionar una FECHA de inicio.", "Campo Requerido", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Ahora es seguro leer el estado
+        String estado = jComboBoxEstado.getSelectedItem().toString();
+
+        // 3. VALIDACIÓN DE CIERRE: No cerrar si hay pendientes
+        if (estado.equalsIgnoreCase("FINALIZADO")) {
+            DefaultTableModel modelo = (DefaultTableModel) tblDetalles.getModel();
+            boolean hayPendientes = false;
+
+            for (int i = 0; i < modelo.getRowCount(); i++) {
+                // Validamos null también aquí por seguridad
+                Object valorEstado = modelo.getValueAt(i, 7);
+                String est = (valorEstado != null) ? valorEstado.toString() : "En Uso";
+
+                if (!"Devuelto".equalsIgnoreCase(est)) {
+                    hayPendientes = true;
+                    break;
+                }
+            }
+
+            if (hayPendientes) {
+                JOptionPane.showMessageDialog(this,
+                        "⛔ NO SE PUEDE FINALIZAR EL ALQUILER.\n\n"
+                        + "Aún hay vehículos en estado 'En Uso'.\n"
+                        + "Debe realizar la devolución de cada ítem primero.",
+                        "Vehículos Pendientes", JOptionPane.ERROR_MESSAGE);
+                return; // 🛑 Detiene el guardado
+            }
         }
 
         try {
             conexion.setAutoCommit(false);
 
-            // 🟢 1️⃣ Obtener datos del formulario
+            // 1️⃣ Obtener datos básicos
             String idAlquiler = txtIdAlquiler.getText().trim();
             String idTurista = txtIdTurista.getText().trim();
             String idUsuario = txtIdVendedor.getText().trim();
+
+            // La fecha ya la validamos arriba, es seguro obtenerla
             java.sql.Date fechaInicio = new java.sql.Date(jDateChooserFecha.getDate().getTime());
+
             String horaInicio = txtHora.getText().trim();
             String horaFinal = txtHoraFin.getText().trim();
-            int duracion = Integer.parseInt(txtDuracion.getText().isEmpty() ? "0" : txtDuracion.getText());
-            double total = Double.parseDouble(txtTotal.getText().isEmpty() ? "0" : txtTotal.getText());
-            String estado = jComboBoxEstado.getSelectedItem().toString();
 
-            // 🧮 2️⃣ Determinar idPromocion
+            // Validación rápida de números para evitar errores si están vacíos
+            int duracion = 0;
+            try {
+                duracion = Integer.parseInt(txtDuracion.getText());
+            } catch (NumberFormatException e) {
+            }
+
+            double totalBase = 0;
+            try {
+                totalBase = Double.parseDouble(txtTotal.getText());
+            } catch (NumberFormatException e) {
+            }
+
+            // Calcular TOTAL FINAL (Base + Moras acumuladas)
+            double totalMoras = 0.0;
+
+            if (estado.equalsIgnoreCase("FINALIZADO")) {
+                DefaultTableModel modeloMora = (DefaultTableModel) tblDetalles.getModel();
+                for (int i = 0; i < modeloMora.getRowCount(); i++) {
+                    Object moraObj = modeloMora.getValueAt(i, 8); // Columna 8 = Mora
+                    if (moraObj != null) {
+                        try {
+                            totalMoras += Double.parseDouble(moraObj.toString());
+                        } catch (NumberFormatException e) {
+                        }
+                    }
+                }
+            }
+            double totalGranTotal = totalBase + totalMoras;
+
+            // 2️⃣ Determinar idPromocion
             String promoSeleccionada = jComboBoxPromos.getSelectedItem() != null
-                    ? jComboBoxPromos.getSelectedItem().toString()
-                    : "Ninguna";
+                    ? jComboBoxPromos.getSelectedItem().toString() : "Ninguna";
             String idPromocion = null;
 
             if (!promoSeleccionada.equalsIgnoreCase("Ninguna")) {
@@ -1185,22 +1266,22 @@ public class PanelAlquiler extends javax.swing.JPanel {
                 }
             }
 
-            // 🧾 3️⃣ Si es NUEVO → registrar con SP
+            // 3️⃣ MODO NUEVO
             if (modo.equals("nuevo")) {
                 try (CallableStatement cs = conexion.prepareCall("{call registrarAlquiler(?,?,?,?,?,?,?,?,?)}")) {
                     cs.setString(1, idTurista);
                     cs.setDate(2, fechaInicio);
                     cs.setString(3, horaInicio);
                     cs.setInt(4, duracion);
-                    cs.setBigDecimal(5, new java.math.BigDecimal(total));
+                    cs.setBigDecimal(5, BigDecimal.valueOf(totalBase));
                     cs.setString(6, estado);
                     cs.setString(7, idPromocion);
                     cs.setString(8, idUsuario);
                     cs.setString(9, horaFinal);
                     cs.execute();
                 }
-               
-                // Recuperar el último ID generado
+
+                // Recuperar ID generado
                 try (PreparedStatement psUltimo = conexion.prepareStatement(
                         "SELECT TOP 1 idAlquiler FROM Alquiler ORDER BY idAlquiler DESC"); ResultSet rs = psUltimo.executeQuery()) {
                     if (rs.next()) {
@@ -1209,88 +1290,66 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     }
                 }
 
-                // Guardar los detalles 
                 guardarSoloNuevosDetalles(idAlquiler);
-
                 JOptionPane.showMessageDialog(this, "✅ Alquiler registrado correctamente.");
-                cargarRecursos();//recargar para q solo aparezcan los disponibles
-                // ✏️ 4️⃣ Si es EDICIÓN
-            } else if (modo.equals("edicion")) {
-               eliminarDetallesQuitados(idAlquiler, (DefaultTableModel) tblDetalles.getModel());
+                cargarRecursos();
 
+                // 4️⃣ MODO EDICIÓN
+            } else if (modo.equals("edicion")) {
+                eliminarDetallesQuitados(idAlquiler, (DefaultTableModel) tblDetalles.getModel());
                 guardarSoloNuevosDetalles(idAlquiler);
-                cargarDetallesAlquiler(idAlquiler);
-                // ✏️ Actualizar cabecera
+
                 String sqlUpdate = """
                 UPDATE Alquiler
-                SET
-                    idTurista = ?,
-                    fechaInicio = ?,
-                    horaInicio = ?,
-                    Duracion = ?,
-                    total = ?,
-                    estado = ?,
-                    idPromocion = ?,
-                    idUsuario = ?,
-                    horaFinal = ?,
+                SET idTurista=?, fechaInicio=?, horaInicio=?, Duracion=?, 
+                    total=?, estado=?, idPromocion=?, idUsuario=?, horaFinal=?,
+                    horaFinalReal = CASE WHEN ? = 'FINALIZADO' THEN CAST(GETDATE() AS TIME) ELSE horaFinalReal END,
+                    mora = ? 
+                WHERE idAlquiler=?
+            """;
 
-                    horaFinalReal = CASE
-                        WHEN ? = 'FINALIZADO' AND horaFinalReal IS NULL
-                        THEN CAST(GETDATE() AS TIME)
-                        ELSE horaFinalReal
-                    END,
-
-                    mora = CASE
-                       WHEN ? = 'FINALIZADO'
-                                AND horaFinalReal IS NULL
-                                AND CAST(GETDATE() AS TIME) > horaFinal
-                                AND DATEDIFF(MINUTE, horaFinal, CAST(GETDATE() AS TIME)) > 10
-                           THEN
-                               (DATEDIFF(MINUTE, horaFinal, CAST(GETDATE() AS TIME)) - 10) * 2
-                           ELSE mora
-                    END
-                WHERE idAlquiler = ?
-                """;
                 try (PreparedStatement ps = conexion.prepareStatement(sqlUpdate)) {
                     ps.setString(1, idTurista);
                     ps.setDate(2, fechaInicio);
                     ps.setString(3, horaInicio);
                     ps.setInt(4, duracion);
-                    ps.setDouble(5, total);
+                    ps.setDouble(5, estado.equalsIgnoreCase("FINALIZADO") ? totalGranTotal : totalBase);
                     ps.setString(6, estado);
                     ps.setString(7, idPromocion);
                     ps.setString(8, idUsuario);
                     ps.setString(9, horaFinal);
-
-                    // 👇 estas dos controlan FINALIZADO
                     ps.setString(10, estado);
-                    ps.setString(11, estado);
-
+                    ps.setDouble(11, totalMoras);
                     ps.setString(12, idAlquiler);
-
                     ps.executeUpdate();
                 }
 
-                // 🧩 Insertar SOLO los detalles nuevos (sin duplicar ni tocar los existentes)
-                
-                
-                JOptionPane.showMessageDialog(this, "✅ Alquiler actualizado correctamente.");
-                 cargarRecursos();
+                if (estado.equalsIgnoreCase("FINALIZADO")) {
+                    JOptionPane.showMessageDialog(this,
+                            "✅ Alquiler FINALIZADO.\n\n"
+                            + "Total Alquiler: S/ " + String.format("%.2f", totalBase) + "\n"
+                            + "Total Moras:    S/ " + String.format("%.2f", totalMoras) + "\n"
+                            + "--------------------------\n"
+                            + "A PAGAR:        S/ " + String.format("%.2f", totalGranTotal));
+                } else {
+                    JOptionPane.showMessageDialog(this, "✅ Alquiler actualizado correctamente.");
+                }
+
+                cargarRecursos();
+                cargarDetallesAlquiler(idAlquiler);
             }
 
-            // 🟢 Confirmar todo
             conexion.commit();
             modo = null;
             habilitarCampos(false);
-           
 
         } catch (Exception e) {
             try {
                 conexion.rollback();
             } catch (SQLException ex) {
             }
-            JOptionPane.showMessageDialog(this, "❌ Error al grabar alquiler: " + e.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace(); // Imprime error en consola para depurar
+            JOptionPane.showMessageDialog(this, "❌ Error al grabar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         } finally {
             try {
                 conexion.setAutoCommit(true);
@@ -1342,6 +1401,99 @@ public class PanelAlquiler extends javax.swing.JPanel {
        
     }//GEN-LAST:event_txtHoraActionPerformed
 
+    private void btnDevolverItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDevolverItemActionPerformed
+       
+        int fila = tblDetalles.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione un vehículo de la tabla para devolver.");
+            return;
+        }
+
+        // Validar si ya está devuelto
+        String estadoActual = tblDetalles.getValueAt(fila, 7) != null ? tblDetalles.getValueAt(fila, 7).toString() : "En Uso";
+        if ("Devuelto".equalsIgnoreCase(estadoActual)) {
+            JOptionPane.showMessageDialog(this, "Este vehículo ya fue devuelto.");
+            return;
+        }
+
+        String idDetalle = tblDetalles.getValueAt(fila, 0).toString();
+        String idRecurso = tblDetalles.getValueAt(fila, 2).toString();
+        double tarifa = Double.parseDouble(tblDetalles.getValueAt(fila, 4).toString());
+        int horasPactadas = Integer.parseInt(tblDetalles.getValueAt(fila, 5).toString());
+
+        // Validar hora inicio
+        if (txtHora.getText().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No hay hora de inicio registrada.");
+            return;
+        }
+        LocalTime horaInicio = LocalTime.parse(txtHora.getText());
+
+        // Calcular Mora
+        double mora = calcularMoraIndividual(horasPactadas, horaInicio, tarifa);
+        String mensajeMora = (mora > 0) ? "\n⚠️ SE APLICARÁ MORA DE: S/ " + mora : "\n✅ Entrega a tiempo. Sin mora.";
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "¿Confirmar devolución del vehículo " + idRecurso + "?" + mensajeMora,
+                "Devolución de Recurso", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            try {
+                // Actualizar BD: El trigger se encargará de liberar el recurso
+                String sql = "UPDATE DetalleAlquiler SET estadoDetalle = 'Devuelto', horaDevolucionReal = ?, moraGenerada = ? WHERE idDetalleAlquiler = ?";
+                PreparedStatement ps = conexion.prepareStatement(sql);
+                ps.setString(1, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+                ps.setDouble(2, mora);
+                ps.setString(3, idDetalle);
+                
+                if (ps.executeUpdate() > 0) {
+                    JOptionPane.showMessageDialog(this, "Vehículo devuelto exitosamente.");
+                    cargarDetallesAlquiler(txtIdAlquiler.getText()); // Recargar tabla
+                    cargarRecursos(); // Refrescar combo de disponibles
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error al devolver: " + e.getMessage());
+            }
+        }
+    }//GEN-LAST:event_btnDevolverItemActionPerformed
+
+    private void txtDuracionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtDuracionActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtDuracionActionPerformed
+
+    private double calcularMoraIndividual(int horasPactadas, LocalTime horaInicio, double tarifaHora) {
+        // 1. Definir fechas y horas (Usamos hoy como referencia según tu lógica actual)
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+        java.time.LocalDateTime inicio = java.time.LocalDateTime.of(hoy, horaInicio);
+        java.time.LocalDateTime limite = inicio.plusHours(horasPactadas);
+        java.time.LocalDateTime ahora = java.time.LocalDateTime.now();
+
+        // 2. Definir el límite REAL con la tolerancia incluida
+        java.time.LocalDateTime limiteConTolerancia = limite.plusMinutes(10);
+
+        // 3. Si todavía estamos dentro de la tolerancia (o antes), no hay mora
+        if (ahora.isBefore(limiteConTolerancia)) {
+            return 0.0;
+        }
+
+        // 4. CÁLCULO DEL TIEMPO EXCEDIDO (LA CORRECCIÓN ESTÁ AQUÍ)
+        // Calculamos la diferencia entre "Ahora" y el "Límite + 10 min"
+        // De esta forma, los primeros 10 minutos nunca se cobran.
+        long minutosRetraso = java.time.temporal.ChronoUnit.MINUTES.between(limiteConTolerancia, ahora);
+
+        if (minutosRetraso <= 0) {
+            return 0.0;
+        }
+
+        // 5. Cálculo monetario
+        double horasExcedidas = minutosRetraso / 60.0;
+        double penalidadFactor = 2.0; // Sigues cobrando el doble, pero solo por el tiempo "extra-extra"
+        
+        double montoMora = horasExcedidas * tarifaHora * penalidadFactor;
+
+        return Math.round(montoMora * 100.0) / 100.0;
+
+    }
+    
     private void validarEstadoAlquiler() {
         Object item = jComboBoxEstado.getSelectedItem();
 
@@ -1492,12 +1644,264 @@ public class PanelAlquiler extends javax.swing.JPanel {
             }
         }
     }
+    // Método para limpiar la hora de SQL Server (quita los segundos y milisegundos)
 
+    private String formatearHora(String horaSql) {
+        if (horaSql == null || horaSql.trim().isEmpty()) {
+            return "";
+        }
+        // Si la cadena es larga (ej: 19:00:00.0000), cortamos los primeros 5 caracteres
+        if (horaSql.length() >= 5) {
+            return horaSql.substring(0, 5);
+        }
+        return horaSql;
+    }
 
+   
+
+    
+    
+    
+   private void configurarEstiloVisual2() {
+        // --- NUEVO: COLORES DE TEXTO Y TÍTULO ---
+        java.awt.Color colorTexto = new java.awt.Color(31, 78, 95); // Azul Petróleo
+        java.awt.Font fuenteTitulo = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 16);
+        java.awt.Font fuenteLabels = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 14);
+
+        // 1. TÍTULO
+        jLabel1.setFont(fuenteTitulo);
+        jLabel1.setForeground(colorTexto);
+        jLabel1.setText("GESTIÓN DE ALQUILERES"); 
+        jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+
+        // 2. ETIQUETAS (LABELS) - Aplicar color a todas
+        javax.swing.JLabel[] labels = {
+            lblIdAlquiler, lblIdTurista, lblFecha, lblDuracion, lblEstado,
+            lblIdVendedor, lblNombreTuri, lblHora, lblPromo, lblHoraFin,
+            lblRecurso, lblHorasUsadas, lblPrecioHora, lblSubtotal, lblTotal
+        };
+
+        for (javax.swing.JLabel lbl : labels) {
+            lbl.setFont(fuenteLabels);
+            lbl.setForeground(colorTexto);
+        }
+        // ------------------------------------------------------
+
+        // 3. ESTILO TABLA (Tu código original)
+        tblDetalles.setRowHeight(22); 
+        tblDetalles.getTableHeader().setFont(new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 12));
+        tblDetalles.getTableHeader().setBackground(new java.awt.Color(240, 248, 255));
+        tblDetalles.getTableHeader().setOpaque(true);
+        tblDetalles.setShowVerticalLines(false);
+
+        // 4. TEXTOS DE BOTONES
+        btnNuevo.setText("✨ Nuevo");
+        btnEliminarAlquiler.setText("🗑️ Eliminar");
+        btnVerAlquileres.setText("📋 Historial");
+
+        // SOLO ÍCONOS 
+        btnBuscarAlquiler.setText("🔍");
+        btnEditar.setText("✏️");
+        btnGrabar.setText("💾");
+        btnBuscarTuri.setText("🔍");
+
+        // Gestión
+        btnAgregarRe.setText("➕ Agregar");
+        btnEliminarRe.setText("❌ Quitar");
+        btnDevolverItem.setText("🗝️ Devolver");
+
+        // 5. ESTILIZADO DE BOTONES (Tu código original)
+        javax.swing.JButton[] botonesAccion = {
+            btnNuevo, btnBuscarAlquiler, btnEditar, btnEliminarAlquiler,
+            btnGrabar, btnVerAlquileres, btnAgregarRe, btnEliminarRe,
+            btnDevolverItem, btnBuscarTuri
+        };
+
+        for (javax.swing.JButton btn : botonesAccion) {
+            btn.setBackground(new java.awt.Color(255, 255, 255));
+            btn.setForeground(new java.awt.Color(0, 51, 102));
+            btn.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.BOLD, 12));
+
+            btn.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                    javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200)),
+                    javax.swing.BorderFactory.createEmptyBorder(2, 5, 2, 5)
+            ));
+
+            btn.setFocusPainted(false);
+            btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        }
+
+        // 6. COLORES ESPECÍFICOS
+        btnGrabar.setBackground(new java.awt.Color(0, 102, 204));
+        btnGrabar.setForeground(java.awt.Color.WHITE);
+
+        btnAgregarRe.setBackground(new java.awt.Color(40, 167, 69));
+        btnAgregarRe.setForeground(java.awt.Color.WHITE);
+
+        btnEliminarRe.setBackground(new java.awt.Color(220, 53, 69));
+        btnEliminarRe.setForeground(java.awt.Color.WHITE);
+
+        btnDevolverItem.setBackground(new java.awt.Color(255, 193, 7));
+        btnDevolverItem.setForeground(java.awt.Color.BLACK);
+
+        btnBuscarTuri.setBackground(new java.awt.Color(230, 240, 255));
+
+        // 7. CAMPOS DE TEXTO
+        javax.swing.JTextField[] campos = {
+            txtIdAlquiler, txtIdTurista, txtIdVendedor, txtNombreTuri,
+            txtHora, txtHoraFin, txtDuracion, txtPrecioHora, txtSub
+        };
+        for (javax.swing.JTextField txt : campos) {
+            txt.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                    javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200)),
+                    javax.swing.BorderFactory.createEmptyBorder(2, 4, 2, 4)
+            ));
+        }
+
+        // Total
+        txtTotal.setFont(new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 14));
+        txtTotal.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
+    }
+    
+    private void reestructurarLayout() {
+    javax.swing.GroupLayout layout = new javax.swing.GroupLayout(jPanel1);
+    jPanel1.setLayout(layout);
+
+    layout.setAutoCreateGaps(false); 
+    layout.setAutoCreateContainerGaps(false);
+
+    // -----------------------------------------------------------
+    // HORIZONTAL (Eje X)
+    // -----------------------------------------------------------
+    layout.setHorizontalGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        // Título
+        .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        
+        // CUERPO PRINCIPAL
+        .addGroup(layout.createSequentialGroup()
+            .addGap(25) // Margen Izquierdo General
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                
+                // 1. BLOQUE DE DATOS (ARRIBA)
+                .addGroup(layout.createSequentialGroup()
+                    // --- Columna Izquierda ---
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(lblIdAlquiler).addComponent(lblIdTurista).addComponent(lblFecha).addComponent(lblDuracion).addComponent(lblEstado))
+                    .addGap(15)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addComponent(txtIdAlquiler, 100, 100, 100).addComponent(txtIdTurista, 100, 100, 100).addComponent(jDateChooserFecha, 100, 100, 100).addComponent(txtDuracion, 100, 100, 100).addComponent(jComboBoxEstado, 100, 100, 100))
+                    
+                    // --- ESPACIO FLEXIBLE EN EL MEDIO (El "Muelle") ---
+                    // Esto separa las columnas para que no se vean pegadas
+                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    
+                    // --- Columna Derecha ---
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(lblIdVendedor).addComponent(lblNombreTuri).addComponent(lblHora).addComponent(lblPromo).addComponent(lblHoraFin))
+                    .addGap(15)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addComponent(txtIdVendedor, 100, 100, 100).addComponent(txtNombreTuri, 100, 100, 100).addComponent(txtHora, 100, 100, 100).addComponent(jComboBoxPromos, 100, 100, 100).addComponent(txtHoraFin, 100, 100, 100))
+                    .addGap(10)
+                    .addComponent(btnBuscarTuri, 30, 30, 30) // Lupa
+                )
+                
+                .addComponent(jSeparator1)
+
+                // 2. GESTIÓN RECURSOS (MEDIO)
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(lblRecurso).addGap(10).addComponent(jComboBoxRecursos, 0, 260, Short.MAX_VALUE).addGap(20)
+                    .addComponent(lblHorasUsadas).addGap(10).addComponent(jSpinnerHorasUsadas, 50, 50, 50))
+                
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(lblPrecioHora).addGap(10).addComponent(txtPrecioHora, 70, 70, 70)
+                    .addGap(30).addComponent(lblSubtotal).addGap(10).addComponent(txtSub, 90, 90, 90)
+                )
+                
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(btnAgregarRe, 90, 90, 90).addGap(10)
+                    .addComponent(btnEliminarRe, 90, 90, 90).addGap(10)
+                    .addComponent(btnDevolverItem, 100, 100, 100).addGap(20)
+                    .addComponent(btnVerAlquileres, 120, 120, 120))
+                
+                .addComponent(jScrollPane1)
+
+                // 3. BLOQUE INFERIOR (BOTONES)
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(lblTotal).addGap(10).addComponent(txtTotal, 100, 100, 100)
+                    
+                    // --- MUELLE INFERIOR ---
+                    // Esto empuja los botones A LA DERECHA
+                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    
+                    .addComponent(btnNuevo, 90, 90, 90).addGap(5)
+                    .addComponent(btnBuscarAlquiler, 40, 40, 40).addGap(5)
+                    .addComponent(btnEditar, 40, 40, 40).addGap(5)
+                    .addComponent(btnEliminarAlquiler, 90, 90, 90).addGap(5)
+                    .addComponent(btnGrabar, 45, 45, 45)
+                )
+            )
+            .addGap(25) // Margen Derecho General
+        )
+    );
+
+    // -----------------------------------------------------------
+    // VERTICAL (Eje Y)
+    // -----------------------------------------------------------
+    layout.setVerticalGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        .addGroup(layout.createSequentialGroup()
+            .addGap(10)
+            .addComponent(jLabel1)
+            .addGap(20)
+            
+            // Fila 1
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER).addComponent(lblIdAlquiler).addComponent(txtIdAlquiler, 25, 25, 25).addComponent(lblIdVendedor).addComponent(txtIdVendedor, 25, 25, 25))
+            .addGap(8)
+            // Fila 2
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER).addComponent(lblIdTurista).addComponent(txtIdTurista, 25, 25, 25).addComponent(lblNombreTuri).addComponent(txtNombreTuri, 25, 25, 25).addComponent(btnBuscarTuri, 25, 25, 25))
+            .addGap(8)
+            // Fila 3
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER).addComponent(lblFecha).addComponent(jDateChooserFecha, 25, 25, 25).addComponent(lblHora).addComponent(txtHora, 25, 25, 25))
+            .addGap(8)
+            // Fila 4
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER).addComponent(lblDuracion).addComponent(txtDuracion, 25, 25, 25).addComponent(lblPromo).addComponent(jComboBoxPromos, 25, 25, 25))
+            .addGap(8)
+            // Fila 5
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER).addComponent(lblEstado).addComponent(jComboBoxEstado, 25, 25, 25).addComponent(lblHoraFin).addComponent(txtHoraFin, 25, 25, 25))
+            
+            .addGap(15).addComponent(jSeparator1, 10, 10, 10).addGap(15)
+            
+            // Recursos
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER).addComponent(lblRecurso).addComponent(jComboBoxRecursos, 28, 28, 28).addComponent(lblHorasUsadas).addComponent(jSpinnerHorasUsadas, 28, 28, 28))
+            .addGap(10)
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER).addComponent(lblPrecioHora).addComponent(txtPrecioHora, 25, 25, 25).addComponent(lblSubtotal).addComponent(txtSub, 25, 25, 25))
+            .addGap(15)
+            
+            // Botones Gestión
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
+                .addComponent(btnAgregarRe, 30, 30, 30).addComponent(btnEliminarRe, 30, 30, 30).addComponent(btnDevolverItem, 30, 30, 30).addComponent(btnVerAlquileres, 30, 30, 30))
+            
+            .addGap(10)
+            .addComponent(jScrollPane1, 80,80, 80)
+            .addGap(15)
+            
+            // Botones Inferiores (30px altura)
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
+                .addComponent(lblTotal).addComponent(txtTotal, 30, 30, 30)
+                .addComponent(btnNuevo, 30, 30, 30)
+                .addComponent(btnBuscarAlquiler, 30, 30, 30)
+                .addComponent(btnEditar, 30, 30, 30)
+                .addComponent(btnEliminarAlquiler, 30, 30, 30)
+                .addComponent(btnGrabar, 30, 30, 30)
+            )
+            .addGap(20)
+        )
+    );
+}
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnAgregarRe;
     private javax.swing.JButton btnBuscarAlquiler;
     private javax.swing.JButton btnBuscarTuri;
+    private javax.swing.JButton btnDevolverItem;
     private javax.swing.JButton btnEditar;
     private javax.swing.JButton btnEliminarAlquiler;
     private javax.swing.JButton btnEliminarRe;

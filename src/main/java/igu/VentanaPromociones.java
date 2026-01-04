@@ -4,13 +4,20 @@
  */
 package igu;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.SwingConstants;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-
+import javax.swing.table.JTableHeader;
 /**
  *
  * @author rafae
@@ -23,39 +30,142 @@ public class VentanaPromociones extends javax.swing.JFrame {
     public VentanaPromociones(Connection conexion) {
         initComponents();
         this.conexion=conexion;
+        // 1. CONFIGURACIÓN BÁSICA DE LA VENTANA
+        this.setTitle("Listado de Promociones");
+        this.setSize(800, 500); // Un tamaño más decente por defecto
+        this.setLocationRelativeTo(null); // Centrar en pantalla
+        this.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+
+        // 2. APLICAR EL DISEÑO (Fondo y Título)
+        aplicarFondoDegradado();
+
+        // 3. ESTILIZAR LA TABLA (Igual que en Recursos)
+        estilizarTabla();
+
+        // 4. CARGAR DATOS
         cargarDatosPromociones();
-        tblPromociones.setDefaultEditor(Object.class, null);
-        tblPromociones.getTableHeader().setReorderingAllowed(false);
-        
-        
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
     }
+    
+    private void aplicarFondoDegradado() {
+        // Creamos el panel degradado
+        PanelDegradado fondo = new PanelDegradado();
+        fondo.setLayout(new BorderLayout());
+
+        // TÍTULO
+        JLabel titulo = new JLabel("LISTADO DE PROMOCIONES ACTIVAS");
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        titulo.setForeground(new Color(31, 78, 95)); // Azul Petróleo
+        titulo.setHorizontalAlignment(SwingConstants.CENTER);
+        // Margen del título: (Arriba, Izq, Abajo, Der)
+        titulo.setBorder(BorderFactory.createEmptyBorder(20, 0, 15, 0));
+
+        // Hacemos transparentes los paneles viejos
+        jPanel1.setOpaque(false);
+        jPanel2.setOpaque(false);
+
+        // --- AQUÍ ESTÁ EL TRUCO PARA VER EL DEGRADADO A LOS LADOS ---
+        
+        // 1. Hacemos transparente el ScrollPane para ver el fondo en los márgenes
+        jScrollPane1.setOpaque(false);
+        
+        // 2. Definimos el margen (hueco) alrededor de la tabla
+        // (Arriba=0, Izquierda=50, Abajo=30, Derecha=50)
+        jScrollPane1.setBorder(BorderFactory.createEmptyBorder(0, 50, 30, 50));
+        
+        // 3. Importante: Pintamos de BLANCO el fondo interno donde van las filas
+        // Esto arregla el "gris" si hay pocas filas
+        jScrollPane1.getViewport().setBackground(Color.WHITE);
+
+        // AGREGAR AL PANEL DEGRADADO
+        fondo.add(titulo, BorderLayout.NORTH);
+        fondo.add(jScrollPane1, BorderLayout.CENTER);
+
+        // Reemplazamos el contenedor principal
+        this.setContentPane(fondo);
+        this.validate();
+    }
+
+    private void estilizarTabla() {
+      // A. FUENTE Y FILAS
+        tblPromociones.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        tblPromociones.setRowHeight(30);
+        tblPromociones.setGridColor(new Color(230, 230, 230));
+        tblPromociones.setShowVerticalLines(false);
+        tblPromociones.setIntercellSpacing(new java.awt.Dimension(0, 0));
+
+        // B. ENCABEZADO (HEADER)
+        JTableHeader header = tblPromociones.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        header.setBackground(new Color(31, 78, 95)); // Azul Petróleo
+        header.setForeground(Color.WHITE);
+        header.setOpaque(true);
+        header.setReorderingAllowed(false);
+
+        // C. RENDERER (COLORES Y CENTRADO)
+        tblPromociones.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(
+                    javax.swing.JTable table, Object value, boolean isSelected,
+                    boolean hasFocus, int row, int column) {
+
+                java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+                this.setHorizontalAlignment(SwingConstants.CENTER);
+
+                if (isSelected) {
+                    c.setBackground(new Color(162, 211, 224)); // Celeste selección
+                    c.setForeground(Color.BLACK);
+                } else {
+                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(245, 245, 245));
+                    c.setForeground(Color.BLACK);
+                }
+                return c;
+            }
+        });
+    }
+
      private void cargarDatosPromociones() {
-        DefaultTableModel modelo = (DefaultTableModel) tblPromociones.getModel();
-        modelo.setRowCount(0); // 🔹 Limpia las filas actuales
+       // Modelo que NO permite edición
+        DefaultTableModel modelo = new DefaultTableModel() {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        // Definimos columnas manualmente para asegurar orden
+        modelo.addColumn("ID");
+        modelo.addColumn("Descripción");
+        modelo.addColumn("Tipo");
+        modelo.addColumn("Condición (Horas)");
 
         try {
             String sql = "SELECT idPromocion, descripcion, tipo, condicionHoras FROM Promocion";
             Statement st = conexion.createStatement();
             ResultSet rs = st.executeQuery(sql);
 
-            // 🔹 Agregamos filas al modelo ya existente
             while (rs.next()) {
                 Object[] fila = {
                     rs.getString("idPromocion"),
                     rs.getString("descripcion"),
                     rs.getString("tipo"),
-                    rs.getDouble("condicionHoras")
-                    
+                    rs.getInt("condicionHoras") // Usamos getInt para que no salga "5.0"
                 };
                 modelo.addRow(fila);
             }
 
             tblPromociones.setModel(modelo);
+            
+            // Ajustar anchos de columna (Opcional, pero se ve mejor)
+            if (tblPromociones.getColumnCount() > 0) {
+                tblPromociones.getColumnModel().getColumn(0).setPreferredWidth(50);  // ID
+                tblPromociones.getColumnModel().getColumn(1).setPreferredWidth(250); // Descripción larga
+                tblPromociones.getColumnModel().getColumn(2).setPreferredWidth(100); // Tipo
+                tblPromociones.getColumnModel().getColumn(3).setPreferredWidth(50);  // Horas
+            }
 
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar recursos: " + e.getMessage(),
-                    "Error SQL", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al cargar: " + e.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
         }
     }
 

@@ -26,28 +26,210 @@ public class PanelRecursos2 extends javax.swing.JPanel {
      * Creates new form PanelRecursos2
      */
     public PanelRecursos2(Connection conexion, String nivel) {
-        initComponents();
         this.conexion = conexion;
         this.nivel = nivel;
+        initComponents();
+        // --- 1. INTEGRAR FONDO DEGRADADO ---
+        PanelDegradado fondo = new PanelDegradado();
+        fondo.setLayout(new java.awt.BorderLayout());
 
+        // Hacemos transparente el panel "bg" para ver el degradado
+        bg.setOpaque(false);
+        fondo.add(bg, java.awt.BorderLayout.CENTER);
+
+        // Reemplazamos en el panel principal
+        this.setLayout(new java.awt.BorderLayout());
+        this.removeAll();
+        this.add(fondo, java.awt.BorderLayout.CENTER);
+
+        this.revalidate();
+        this.repaint();
+        // --- 2. LOGICA DE NEGOCIO ---
         cargando = true;
-
         cargarTiposRecursos();
         cargarEstados();
-
         limpiarCampos();
-        habilitarCampos(false);
-
         cargando = false;
 
-        bg.setBorder(null);
-        bg.setBounds(0, 0, 640, 500);
-        setBounds(0, 0, 640, 500);
-        setOpaque(false);
-        bg.setOpaque(true);
+// --- 3. DISEÑO VISUAL (La Magia) ---
+        aplicarEstilosModernos();
+        corregirDistribucion(); // Acomoda todo matemáticamente
+
+        // Aplicamos el bloqueo visual inicial
+        habilitarCampos(false);
 
     }
+    private void aplicarEstilosModernos() {
+        // Definir Colores y Fuentes
+        java.awt.Color colorTexto = new java.awt.Color(31, 78, 95); // Azul Petróleo
+        java.awt.Font fuenteTitulo = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 24);
+        java.awt.Font fuenteLabels = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 14);
+        java.awt.Font fuenteCampos = new java.awt.Font("Segoe UI", java.awt.Font.PLAIN, 14);
 
+        // 1. Título
+        jLabel1.setFont(fuenteTitulo);
+        jLabel1.setForeground(colorTexto);
+        jLabel1.setText("GESTIÓN DE RECURSOS");
+
+        // 2. Etiquetas (Labels)
+        javax.swing.JLabel[] labels = {lblId, lblTipo, lblDescrip, lblTarifa, lblEstado, lblUbi};
+        for (javax.swing.JLabel lbl : labels) {
+            lbl.setFont(fuenteLabels);
+            lbl.setForeground(colorTexto);
+        }
+
+        // Arreglamos textos (Capitalización)
+        lblDescrip.setText("Descripción");
+        lblUbi.setText("Ubicación");
+        lblTarifa.setText("Tarifa / Hora");
+
+        // 3. Estilo de Campos de Texto (Bordes suaves)
+        javax.swing.border.Border bordeCampo = javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200)),
+                javax.swing.BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        );
+
+        javax.swing.JTextField[] campos = {txtId, txtTarifa, txtUbi};
+        for (javax.swing.JTextField txt : campos) {
+            txt.setFont(fuenteCampos);
+            txt.setBorder(bordeCampo);
+        }
+
+        // Estilo especial para el Área de Texto y Combos
+        txtAreaDescrip.setFont(fuenteCampos);
+        txtAreaDescrip.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5)); // Padding interno
+        jScrollPane1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200))); // Borde externo
+
+        jComboBoxTipo.setFont(fuenteCampos);
+        jComboBoxEstado.setFont(fuenteCampos);
+
+        // 4. Botones con Iconos
+        javax.swing.JButton[] botones = {btnNuevo, btnBuscar, btnEditar, btnEliminar, btnGrabar, btnVer};
+        for (javax.swing.JButton btn : botones) {
+            estilizarBoton(btn);
+        }
+
+        // Asignar Emojis y Textos
+        btnNuevo.setText("📄 Nuevo");
+        btnBuscar.setText("🔍 Buscar");
+        btnEditar.setText("✏️ Editar");
+        btnEliminar.setText("🗑️ Eliminar");
+        btnGrabar.setText("💾 Guardar");
+        btnVer.setText("📋 Ver Lista");
+    }
+
+// Método auxiliar para botones blancos y limpios
+    private void estilizarBoton(javax.swing.JButton btn) {
+        btn.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.BOLD, 12));
+        btn.setForeground(new java.awt.Color(31, 78, 95));
+        btn.setBackground(java.awt.Color.WHITE);
+        btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(true);
+        btn.setContentAreaFilled(true);
+        btn.setOpaque(true);
+        btn.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1),
+                javax.swing.BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+    }
+
+    private void corregirDistribucion() {
+        // ¡IMPORTANTE! Desactivar el layout automático de NetBeans
+        bg.setLayout(null);
+
+        // Título
+        jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel1.setBounds(0, 20, 640, 40);
+
+        // Configuración de columnas
+        int xLabel = 40;
+        int xInput = 160;
+        int anchoInput = 420;
+        int altoStd = 30;
+
+        int y = 80;   // Altura inicial
+        int gap = 45; // Separación entre filas
+
+        // Fila 1: ID
+        lblId.setBounds(xLabel, y, 100, altoStd);
+        txtId.setBounds(xInput, y, 150, altoStd); // ID más corto
+
+        // Fila 2: Tipo
+        y += gap;
+        lblTipo.setBounds(xLabel, y, 100, altoStd);
+        jComboBoxTipo.setBounds(xInput, y, anchoInput, altoStd);
+
+        // Fila 3: Descripción (Más alta)
+        y += gap;
+        lblDescrip.setBounds(xLabel, y, 100, altoStd);
+        jScrollPane1.setBounds(xInput, y, anchoInput, 60); // 60px de alto
+
+        // Fila 4: Tarifa (Ajustamos Y porque la descripción ocupó más espacio)
+        y += gap + 25;
+        lblTarifa.setBounds(xLabel, y, 100, altoStd);
+        txtTarifa.setBounds(xInput, y, anchoInput, altoStd);
+
+        // Fila 5: Estado
+        y += gap;
+        lblEstado.setBounds(xLabel, y, 100, altoStd);
+        jComboBoxEstado.setBounds(xInput, y, anchoInput, altoStd);
+
+        // Fila 6: Ubicación
+        y += gap;
+        lblUbi.setBounds(xLabel, y, 100, altoStd);
+        txtUbi.setBounds(xInput, y, anchoInput, altoStd);
+
+        // --- NUEVO: LÍNEA SEPARADORA DE BOTONES ---
+        javax.swing.JPanel lineaBotones = new javax.swing.JPanel();
+        lineaBotones.setBackground(new java.awt.Color(31, 78, 95)); // Azul Petróleo
+        // La ponemos en Y=370 (Justo entre el campo y los botones)
+        lineaBotones.setBounds(40, 370, 560, 2); 
+        bg.add(lineaBotones);
+        // ---------------------
+        // --- BOTONES ---
+        int yBtn = 380;
+        int wBtn = 100;
+        int hBtn = 35;
+        int gapBtn = 10;
+        int xBtn = 40; // Margen izquierdo
+
+        btnNuevo.setBounds(xBtn, yBtn, wBtn, hBtn);
+        xBtn += wBtn + gapBtn;
+        btnBuscar.setBounds(xBtn, yBtn, wBtn, hBtn);
+        xBtn += wBtn + gapBtn;
+        btnEditar.setBounds(xBtn, yBtn, wBtn, hBtn);
+        xBtn += wBtn + gapBtn;
+        btnEliminar.setBounds(xBtn, yBtn, wBtn, hBtn);
+        xBtn += wBtn + gapBtn;
+        btnGrabar.setBounds(xBtn, yBtn, wBtn, hBtn);
+
+        // Botón Ver Lista (Abajo a la derecha)
+        btnVer.setBounds(460, 440, 120, 35);
+    }
+   
+    private void habilitarCampos(boolean habilitar) {
+        java.awt.Color colorFondo = habilitar ? java.awt.Color.WHITE : new java.awt.Color(240, 240, 240);
+
+        // ID siempre bloqueado (es autogenerado normalmente)
+        txtId.setEditable(false);
+        txtId.setBackground(new java.awt.Color(230, 230, 230));
+
+        // Campos de Texto
+        javax.swing.JTextField[] campos = {txtTarifa, txtUbi};
+        for (javax.swing.JTextField txt : campos) {
+            txt.setEditable(habilitar);
+            txt.setBackground(colorFondo);
+        }
+
+        // Área de texto
+        txtAreaDescrip.setEditable(habilitar);
+        txtAreaDescrip.setBackground(colorFondo);
+
+        // Combos
+        jComboBoxTipo.setEnabled(habilitar);
+        jComboBoxEstado.setEnabled(habilitar);
+    }
     private void cargarTiposRecursos() {
         jComboBoxTipo.removeAllItems();
         jComboBoxTipo.addItem("➕ Nuevo tipo...");
@@ -86,15 +268,15 @@ public class PanelRecursos2 extends javax.swing.JPanel {
         cargando = false;
     }
 
-    private void habilitarCampos(boolean habilitar) {
-        txtId.setEnabled(false); // SIEMPRE false (ID automático)
-        jComboBoxTipo.setEnabled(habilitar);
-        txtAreaDescrip.setEnabled(habilitar);
-        txtTarifa.setEnabled(habilitar);
-        jComboBoxEstado.setEnabled(habilitar);
-        txtUbi.setEnabled(habilitar);
+   // private void habilitarCampos(boolean habilitar) {
+     //   txtId.setEnabled(false); // SIEMPRE false (ID automático)
+       // jComboBoxTipo.setEnabled(habilitar);
+        //txtAreaDescrip.setEnabled(habilitar);
+        //txtTarifa.setEnabled(habilitar);
+        //jComboBoxEstado.setEnabled(habilitar);
+        //txtUbi.setEnabled(habilitar);
 
-    }
+    //}
 
     private void buscarRecurso(String idBuscar) {
         if (idBuscar == null || idBuscar.trim().isEmpty()) {
@@ -305,13 +487,20 @@ public class PanelRecursos2 extends javax.swing.JPanel {
     }//GEN-LAST:event_btnBuscarActionPerformed
 
     private void btnEditarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarActionPerformed
-        if (nivel.equalsIgnoreCase("administrador")) {
-            habilitarCampos(true);
-            txtId.setEnabled(false);
-            modo = "edicion";
-        } else {
-            JOptionPane.showMessageDialog(null, "opcion solo para administradores");
+      if (nivel.equalsIgnoreCase("administrador")) {
+        // --- VALIDACIÓN NUEVA ---
+        if (txtId.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Primero debe buscar un recurso para editarlo.");
+            return;
         }
+        // ------------------------
+
+        habilitarCampos(true);
+        txtId.setEnabled(false); // El ID nunca se debe editar en SQL relacional
+        modo = "edicion";
+    } else {
+        JOptionPane.showMessageDialog(null, "opcion solo para administradores");
+    }
 
     }//GEN-LAST:event_btnEditarActionPerformed
 
@@ -405,6 +594,18 @@ public class PanelRecursos2 extends javax.swing.JPanel {
             JOptionPane.showMessageDialog(this, "Seleccione estado.");
             return;
         }
+        String estado = jComboBoxEstado.getSelectedItem().toString();
+
+        // --- AQUÍ ESTÁ LA SOLUCIÓN 3 ---
+        // Regla: Un recurso NUEVO no puede nacer "Ocupado".
+        if (modo.equals("nuevo") && estado.equalsIgnoreCase("Ocupado")) {
+            JOptionPane.showMessageDialog(this,
+                    "Un recurso nuevo debe registrarse como 'Disponible' o 'Mantenimiento'.\n"
+                    + "No puede crearse directamente como 'Ocupado'.",
+                    "Validación de Estado",
+                    JOptionPane.WARNING_MESSAGE);
+            return; // Detenemos el guardado
+        }
 
 
         try {
@@ -489,7 +690,8 @@ public class PanelRecursos2 extends javax.swing.JPanel {
 
         // 👉 NUEVO TIPO
         if (tipo.equals("➕ Nuevo tipo...")) {
-
+            
+            
             String nuevoTipo = JOptionPane.showInputDialog(
                     this,
                     "Ingrese el nombre del nuevo tipo de vehículo:"
@@ -519,58 +721,49 @@ public class PanelRecursos2 extends javax.swing.JPanel {
             txtTarifa.setText("");
 
             cargando = true;
-            jComboBoxTipo.addItem(tipoNormalizado);
-            jComboBoxTipo.setSelectedItem(tipoNormalizado);
-            cargando = false;
 
-            JOptionPane.showMessageDialog(this,
-                    "Nuevo tipo agregado. Complete los datos.");
+            try {
+                // Estas dos líneas DISPARAN eventos. Al tener cargando=true, 
+                // al inicio de este método el 'if(cargando) return' nos protege.
+                jComboBoxTipo.addItem(tipoNormalizado);
+                jComboBoxTipo.setSelectedItem(tipoNormalizado);
+
+            } finally {
+                // 🟢 SEMÁFORO VERDE: "Listo Java, ya terminé. Vuelve a escuchar eventos."
+                // El 'finally' asegura que esto se ejecute SIEMPRE, incluso si hay error.
+                cargando = false;
+            }
+
+            JOptionPane.showMessageDialog(this, "Nuevo tipo agregado. Complete los datos.");
             return;
         }
 
-        // 👉 TIPO EXISTENTE → AUTOCOMPLETAR
-        String sql = """
-        SELECT TOP 1 descripcion, tarifaHora
-        FROM Recursos
-        WHERE tipo = ?
-    """;
+        if (modo != null && modo.equals("nuevo")) {
+            
+            String sql = "SELECT TOP 1 descripcion, tarifaHora FROM Recursos WHERE tipo = ?";
 
-        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, tipo);
-            ResultSet rs = ps.executeQuery();
+            try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+                ps.setString(1, tipo);
+                ResultSet rs = ps.executeQuery();
 
-            if (rs.next()) {
-                txtAreaDescrip.setText(rs.getString("descripcion"));
-                txtTarifa.setText(rs.getBigDecimal("tarifaHora").toString());
+                if (rs.next()) {
+                    txtAreaDescrip.setText(rs.getString("descripcion"));
+                    txtTarifa.setText(rs.getBigDecimal("tarifaHora").toString());
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             }
-
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Error al cargar datos del tipo: " + e.getMessage());
         }
-
     }//GEN-LAST:event_jComboBoxTipoActionPerformed
 
     private void jComboBoxEstadoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBoxEstadoActionPerformed
-        if (jComboBoxEstado.getSelectedItem() == null) {
-            return;
-        }
-
-        String estado = jComboBoxEstado.getSelectedItem().toString();
-
-        if (estado.equals("Ocupado")) {
-            btnGrabar.setEnabled(false);
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "No puede registrar un recurso como OCUPADO.\n"
-                    + "Ese estado solo se asigna durante un alquiler.",
-                    "Estado no permitido",
-                    JOptionPane.WARNING_MESSAGE
-            );
-        } else {
-            btnGrabar.setEnabled(true);
-        }
+       // Solo dejamos la validación de nulos si quieres, pero QUITAMOS el btnGrabar.setEnabled(false)
+    if (jComboBoxEstado.getSelectedItem() == null) {
+        return;
+    }
+    
+    // Aquí puedes poner un mensaje informativo si quieres, 
+    // pero NO bloquees el botón.
     }//GEN-LAST:event_jComboBoxEstadoActionPerformed
 
 

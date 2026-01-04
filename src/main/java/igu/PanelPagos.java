@@ -5,19 +5,22 @@
 package igu;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Component;
 import java.math.BigDecimal;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
-
-/**
- *
- * @author rafae
- */
+import javax.swing.SwingConstants;
+import javax.swing.JTextField;
+ 
 public class PanelPagos extends javax.swing.JPanel {
 
     private Connection conexion;
@@ -29,95 +32,116 @@ public class PanelPagos extends javax.swing.JPanel {
      */
     public PanelPagos(Connection conexion, String idUsuario) {
         initComponents();
-
+        this.conexion = conexion;
+        this.idUsuario = idUsuario;
+      // --- 1. INTEGRACIÓN DEL FONDO DEGRADADO ---
         PanelDegradado fondo = new PanelDegradado();
-
-// MUY IMPORTANTE: dejar layout por defecto (BorderLayout)
         fondo.setLayout(new java.awt.BorderLayout());
 
-// Pasar jPanel1 dentro del panel degradado
+        // Hacemos transparente el panel de NetBeans
         jPanel1.setOpaque(false);
-        fondo.add(jPanel1, BorderLayout.CENTER);
+        
+        // Metemos el panel de controles DENTRO del degradado
+        fondo.add(jPanel1, java.awt.BorderLayout.CENTER);
 
-// Ahora reemplazas en el contenedor padre
-        remove(jPanel1);
-        add(fondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
+        // Reemplazamos el contenido principal
+        this.setLayout(new java.awt.BorderLayout());
+        this.removeAll();
+        this.add(fondo, java.awt.BorderLayout.CENTER);
 
-// refrescar
-        revalidate();
-        repaint();
-        this.idUsuario = idUsuario;
-        this.conexion = conexion;
+        this.revalidate();
+        this.repaint();
+
+        ((javax.swing.JTextField) jDateChooserFechaPago.getDateEditor().getUiComponent()).setEditable(false);
+        // --- 2. APLICAR ESTILOS VISUALES (LLAMADA AL NUEVO MÉTODO) ---
+        aplicarEstilosModernos(); 
+        corregirDistribucion();
+
+        // --- 3. CONFIGURACIÓN LÓGICA ---
         habilitarCampos(false);
         txtIgv.setEditable(false);
         txtIgv.setText("0.00");
 
-        // 🟢 Calcular IGV y total automáticamente al escribir
         txtMontoSinIgv.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyReleased(java.awt.event.KeyEvent evt) {
                 calcularMontos();
             }
         });
-        cargarUltimoAlquiler();
 
+        cargarUltimoAlquiler();
     }
+    
+  
+    
+    // --- LÓGICA DE NEGOCIO (Validada) ---
 
     private void cargarUltimoAlquiler() {
-
         String sql = """
-        SELECT TOP 1
-            a.idAlquiler,
-            t.dni,
-            a.total
-        FROM Alquiler a
-        JOIN Turista t ON a.idTurista = t.idTurista
-        WHERE a.idUsuario = ?
-          AND NOT EXISTS (
-              SELECT 1
-              FROM Pago p
-              WHERE p.idAlquiler = a.idAlquiler
-          )
-        ORDER BY a.fechaInicio DESC
-    """;
+            SELECT TOP 1 a.idAlquiler, t.dni, a.total
+            FROM Alquiler a
+            JOIN Turista t ON a.idTurista = t.idTurista
+            WHERE a.idUsuario = ?
+              AND NOT EXISTS (SELECT 1 FROM Pago p WHERE p.idAlquiler = a.idAlquiler AND p.estado != 'anulado')
+            ORDER BY a.fechaInicio DESC
+        """;
 
         try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-
             ps.setString(1, idUsuario);
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-
                 txtIdAlquiler.setText(rs.getString("idAlquiler"));
                 txtDniTuri.setText(rs.getString("dni"));
-                txtMontoSinIgv.setText(rs.getBigDecimal("total").toString());
-
-                calcularMontos();
+                txtMontoTotal.setText(rs.getBigDecimal("total").toString());
+                
+                calcularMontos(); 
 
                 JcmbMetodoPago.setSelectedIndex(0);
                 JcmbEstadoPago.setSelectedItem("Pendiente");
-
-            } else {
-                JOptionPane.showMessageDialog(this,
-                        "No hay alquileres pendientes de pago",
-                        "Información",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
-            }
-
+                
+                modo = "nuevo";
+                habilitarCampos(true);
+                JOptionPane.showMessageDialog(this, 
+                    "Se cargó el último alquiler pendiente de pago.", 
+                    "Información", JOptionPane.INFORMATION_MESSAGE);
+            } 
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Error al cargar alquiler pendiente: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            System.err.println("Error carga inicial: " + e.getMessage());
         }
-        habilitarCampos(true);
-        modo="nuevo";
     }
 
+    private void calcularMontos() {
+        try {
+            // 1. CAMBIO CLAVE: Ahora leemos el TOTAL, no el "Sin IGV".
+            // Asumo que el usuario escribe o el sistema carga el dato en 'txtMontoTotal'
+            String textoTotal = txtMontoTotal.getText().trim().replace(",", ".");
 
- 
+            if (textoTotal.isEmpty()) {
+                txtMontoSinIgv.setText("0.00");
+                txtIgv.setText("0.00");
+                return;
+            }
+
+            BigDecimal total = new BigDecimal(textoTotal);
+
+            // 2. LÓGICA INVERSA: Dividimos entre 1.18 para sacar la base
+            // Usamos RoundingMode.HALF_UP para redondear correctamente a 2 decimales
+            BigDecimal baseImponible = total.divide(new BigDecimal("1.18"), 2, java.math.RoundingMode.HALF_UP);
+
+            // 3. Calculamos el IGV restando (Total - Base)
+            BigDecimal igv = total.subtract(baseImponible);
+
+            // 4. Mostramos los resultados desglosados
+            txtMontoSinIgv.setText(baseImponible.toString());
+            txtIgv.setText(igv.toString());
+
+        } catch (NumberFormatException e) {
+            // Ignoramos errores mientras escribe
+        } catch (ArithmeticException e) {
+            // Por si acaso ocurra error de división (aunque con el rounding mode no debería)
+        }
+    }
 
     private void limpiarCampos() {
         txtIdPago.setText("");
@@ -129,25 +153,35 @@ public class PanelPagos extends javax.swing.JPanel {
         txtMontoTotal.setText("");
         JcmbMetodoPago.setSelectedIndex(0);
         JcmbEstadoPago.setSelectedIndex(0);
-        
     }
-    
+
     private void habilitarCampos(boolean estado) {
         txtIdAlquiler.setEditable(false);
         txtIdPago.setEditable(false);
         txtDniTuri.setEditable(false);
+        txtMontoTotal.setEditable(false);
+        txtIgv.setEditable(false);
+        txtMontoSinIgv.setEditable(false); 
+        
         btnBuscarAlquiller.setEnabled(estado);
         jDateChooserFechaPago.setEnabled(estado);
-        txtMontoTotal.setEditable(false);
         JcmbMetodoPago.setEnabled(estado);
-        JcmbEstadoPago.setEnabled(false);
-        txtMontoSinIgv.setEditable(false);
-        
-       
-        
-        
+        JcmbEstadoPago.setEnabled(false); 
     }
+    
+    private void seleccionarItemIgnoreCase(JComboBox<String> combo, String valorBD) {
+        if (valorBD == null) return;
+        for (int i = 0; i < combo.getItemCount(); i++) {
+            if (combo.getItemAt(i).equalsIgnoreCase(valorBD)) {
+                combo.setSelectedIndex(i);
+                return;
+            }
+        }
+        combo.setSelectedIndex(0);
+    }
+    
 
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -278,6 +312,12 @@ public class PanelPagos extends javax.swing.JPanel {
 
         jLabel9.setForeground(new java.awt.Color(0, 0, 0));
         jLabel9.setText("monto sin igv");
+
+        txtMontoSinIgv.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtMontoSinIgvActionPerformed(evt);
+            }
+        });
 
         jLabel10.setForeground(new java.awt.Color(0, 0, 0));
         jLabel10.setText("igv");
@@ -431,61 +471,41 @@ public class PanelPagos extends javax.swing.JPanel {
         add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 640, 500));
     }// </editor-fold>//GEN-END:initComponents
 
-    private void seleccionarItemIgnoreCase(JComboBox<String> combo, String valorBD) {
-        if (valorBD == null) {
-            return;
-        }
-        for (int i = 0; i < combo.getItemCount(); i++) {
-            String item = combo.getItemAt(i);
-            if (item.equalsIgnoreCase(valorBD)) {
-                combo.setSelectedIndex(i);
-                return;
-            }
-        }
-        // Si no encontró coincidencia exacta, puedes dejar el primero o limpiar
-        combo.setSelectedIndex(0);
-    }
-
-    
+   
     private void btnBuscarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarActionPerformed
-        String idPago = JOptionPane.showInputDialog(this, "Ingrese el ID del pago (ej. P001):");
-        if (idPago == null || idPago.trim().isEmpty()) {
+        String id = JOptionPane.showInputDialog("Ingrese ID Pago:");
+        if (id == null) {
             return;
         }
 
-        String sql = """
-        SELECT p.idPago, p.idAlquiler, p.fechaPago, p.monto, p.metodoPago, p.estado,
-               t.dni
-        FROM Pago p
-        JOIN Alquiler a ON p.idAlquiler = a.idAlquiler
-        JOIN Turista t ON a.idTurista = t.idTurista
-        WHERE p.idPago = ?
-    """;
-
+        String sql = "SELECT * FROM Pago WHERE idPago = ?";
         try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, idPago);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    txtIdPago.setText(rs.getString("idPago"));
-                    txtIdAlquiler.setText(rs.getString("idAlquiler"));
-                    jDateChooserFechaPago.setDate(rs.getDate("fechaPago"));
-                    txtMontoSinIgv.setText(String.valueOf(rs.getBigDecimal("monto")));
-                    seleccionarItemIgnoreCase(JcmbMetodoPago, rs.getString("metodoPago"));
-                    seleccionarItemIgnoreCase(JcmbEstadoPago, rs.getString("estado"));
+            ps.setString(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                txtIdPago.setText(rs.getString("idPago"));
+                txtIdAlquiler.setText(rs.getString("idAlquiler"));
+                txtMontoSinIgv.setText(rs.getBigDecimal("monto").toString());
+                jDateChooserFechaPago.setDate(rs.getDate("fechaPago"));
 
-                    txtDniTuri.setText(rs.getString("dni")); // 🟢 ahora sí carga el DNI
+                seleccionarItemIgnoreCase(JcmbMetodoPago, rs.getString("metodoPago"));
+                seleccionarItemIgnoreCase(JcmbEstadoPago, rs.getString("estado"));
 
-                    btnAnular.setEnabled(true);
-                    habilitarCampos(false);
-                    calcularMontos();
-                    
-                    JOptionPane.showMessageDialog(this, "✅ Pago encontrado correctamente.");
-                } else {
-                    JOptionPane.showMessageDialog(this, "No se encontró ningún pago con ese ID.", "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                calcularMontos();
+
+                PreparedStatement psDni = conexion.prepareStatement(
+                        "SELECT t.dni FROM Turista t JOIN Alquiler a ON a.idTurista = t.idTurista WHERE a.idAlquiler=?");
+                psDni.setString(1, txtIdAlquiler.getText());
+                ResultSet rsDni = psDni.executeQuery();
+                if (rsDni.next()) {
+                    txtDniTuri.setText(rsDni.getString("dni"));
                 }
+
+            } else {
+                JOptionPane.showMessageDialog(this, "Pago no encontrado");
             }
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al buscar pago: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
         }
     }//GEN-LAST:event_btnBuscarActionPerformed
 
@@ -497,26 +517,45 @@ public class PanelPagos extends javax.swing.JPanel {
     }//GEN-LAST:event_btnNuevoActionPerformed
 
     private void btnBuscarAlquillerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarAlquillerActionPerformed
-        String idAlquiler = JOptionPane.showInputDialog(this, "Ingrese el ID del alquiler (ej. A001):");
+      String idAlquiler = JOptionPane.showInputDialog(this, "Ingrese ID Alquiler (ej. A001):");
         if (idAlquiler == null || idAlquiler.trim().isEmpty()) return;
 
-        String sql = "SELECT a.idTurista, t.dni, a.total FROM Alquiler a JOIN Turista t ON a.idTurista = t.idTurista WHERE a.idAlquiler = ?";
+        // 1. Validar duplicados (Tu código está bien aquí)
+        try {
+            String sqlCheck = "SELECT COUNT(*) FROM Pago WHERE idAlquiler = ? AND estado != 'anulado'";
+            PreparedStatement psCheck = conexion.prepareStatement(sqlCheck);
+            psCheck.setString(1, idAlquiler);
+            ResultSet rsCheck = psCheck.executeQuery();
+            if (rsCheck.next() && rsCheck.getInt(1) > 0) {
+                JOptionPane.showMessageDialog(this, "⚠️ Este alquiler ya tiene un pago activo.", "Duplicado", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+
+        // 2. Buscar datos
+        String sql = "SELECT a.total, t.dni FROM Alquiler a JOIN Turista t ON a.idTurista = t.idTurista WHERE a.idAlquiler = ?";
         try (PreparedStatement ps = conexion.prepareStatement(sql)) {
             ps.setString(1, idAlquiler);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    txtIdAlquiler.setText(idAlquiler);
-                    txtDniTuri.setText(rs.getString("dni"));
-                    txtMontoSinIgv.setText(String.valueOf(rs.getBigDecimal("total")));
-                    calcularMontos();
-                } else {
-                    JOptionPane.showMessageDialog(this, "No se encontró el alquiler indicado.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                }
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                txtIdAlquiler.setText(idAlquiler);
+                txtDniTuri.setText(rs.getString("dni"));
+                
+                // --- CORRECCIÓN AQUÍ ---
+                // El total de la BD va al campo TOTAL, no al subtotal.
+                txtMontoTotal.setText(rs.getBigDecimal("total").toString());
+                
+                // Ahora sí, calculamos hacia atrás (desagregamos IGV)
+                calcularMontos();
+                
+            } else {
+                JOptionPane.showMessageDialog(this, "Alquiler no encontrado.");
             }
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al buscar alquiler: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error SQL: " + e.getMessage());
         }
-    
+
     }//GEN-LAST:event_btnBuscarAlquillerActionPerformed
 
     private void btnEditarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarActionPerformed
@@ -530,271 +569,131 @@ public class PanelPagos extends javax.swing.JPanel {
     }//GEN-LAST:event_btnEditarActionPerformed
 
     private void btnPagarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPagarActionPerformed
-        try {
-            if (modo != null && modo.equals("nuevo")) {
-                // 🔹 Solo mueve el combo visualmente
-                JcmbEstadoPago.setSelectedItem("Completado");
-                JOptionPane.showMessageDialog(this,
-                        "✅ El estado se marcó como 'Completado'.\nGrabe para registrar el pago.",
-                        "Modo nuevo", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
+        // Simplemente cambiamos el estado visualmente
+        JcmbEstadoPago.setSelectedItem("Completado");
 
-            if (modo != null && modo.equals("edicion")) {
-                String idPago = txtIdPago.getText().trim();
-                if (idPago.isEmpty()) {
-                    JOptionPane.showMessageDialog(this,
-                            "Debe buscar un pago antes de marcarlo como completado.",
-                            "Advertencia", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                String sql = "UPDATE Pago SET estado = 'Completado' WHERE idPago = ?";
-                try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-                    ps.setString(1, idPago);
-                    int filas = ps.executeUpdate();
-                    if (filas > 0) {
-                        JOptionPane.showMessageDialog(this,
-                                "💰 Pago marcado como COMPLETADO exitosamente.",
-                                "Éxito", JOptionPane.INFORMATION_MESSAGE);
-                        JcmbEstadoPago.setSelectedItem("Completado");
-                    } else {
-                        JOptionPane.showMessageDialog(this,
-                                "No se encontró el pago especificado.",
-                                "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            } else {
-                JOptionPane.showMessageDialog(this,
-                        "Debe estar en modo 'nuevo' o 'edición' para usar esta función.",
-                        "Modo inválido", JOptionPane.WARNING_MESSAGE);
-            }
-
-        } catch (SQLException e) {
+        // Feedback visual al usuario
+        if (modo != null && (modo.equals("nuevo") || modo.equals("edicion"))) {
             JOptionPane.showMessageDialog(this,
-                    "Error al actualizar estado: " + e.getMessage(),
-                    "Error SQL", JOptionPane.ERROR_MESSAGE);
+                    "Estado cambiado a 'Completado'.\nPulse GRABAR para confirmar la transacción.",
+                    "Acción requerida", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, "Primero presione Nuevo o Editar.");
         }
     }//GEN-LAST:event_btnPagarActionPerformed
 
     private void btnAnularActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAnularActionPerformed
-        try {
-            if (modo != null && modo.equals("nuevo")) {
-                // 🔹 Solo cambia el combo visualmente
-                seleccionarItemIgnoreCase(JcmbEstadoPago, "anulado");
-                JOptionPane.showMessageDialog(this,
-                        "⚠️ Estado marcado como 'Anulado'.\nGrabe para registrar el cambio.",
-                        "Modo nuevo", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
+        // Simplemente cambiamos el estado visualmente
+        JcmbEstadoPago.setSelectedItem("anulado"); // Asegúrate que coincida con el item de tu combo
 
-            if (modo != null && modo.equals("edicion")) {
-                String idPago = txtIdPago.getText().trim();
-                if (idPago.isEmpty()) {
-                    JOptionPane.showMessageDialog(this,
-                            "Debe buscar un pago antes de anularlo.",
-                            "Advertencia", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                int confirm = JOptionPane.showConfirmDialog(this,
-                        "¿Está seguro de ANULAR este pago?",
-                        "Confirmar anulación", JOptionPane.YES_NO_OPTION);
-
-                if (confirm != JOptionPane.YES_OPTION) {
-                    return;
-                }
-
-                String sql = "UPDATE Pago SET estado = 'Anulado' WHERE idPago = ?";
-                try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-                    ps.setString(1, idPago);
-                    int filas = ps.executeUpdate();
-                    if (filas > 0) {
-                        JOptionPane.showMessageDialog(this,
-                                "🚫 Pago ANULADO correctamente.",
-                                "Éxito", JOptionPane.INFORMATION_MESSAGE);
-                         seleccionarItemIgnoreCase(JcmbEstadoPago, "anulado");
-                    } else {
-                        JOptionPane.showMessageDialog(this,
-                                "No se encontró el pago especificado.",
-                                "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            } else {
-                JOptionPane.showMessageDialog(this,
-                        "Debe estar en modo 'nuevo' o 'edición' para usar esta función.",
-                        "Modo inválido", JOptionPane.WARNING_MESSAGE);
-            }
-
-        } catch (SQLException e) {
+        if (modo != null && (modo.equals("nuevo") || modo.equals("edicion"))) {
             JOptionPane.showMessageDialog(this,
-                    "Error al anular pago: " + e.getMessage(),
-                    "Error SQL", JOptionPane.ERROR_MESSAGE);
+                    "Estado cambiado a 'Anulado'.\nPulse GRABAR para confirmar.",
+                    "Acción requerida", JOptionPane.WARNING_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, "Primero presione Nuevo o Editar.");
         }
     }//GEN-LAST:event_btnAnularActionPerformed
 
     private void btnGrabarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGrabarActionPerformed
-        if (modo == null || (!modo.equalsIgnoreCase("nuevo") && !modo.equalsIgnoreCase("edicion"))) {
-            JOptionPane.showMessageDialog(this,
-                    "Debe seleccionar primero 'Nuevo' o 'Editar' antes de grabar.",
-                    "Aviso", JOptionPane.WARNING_MESSAGE);
+        if (modo == null) {
+            JOptionPane.showMessageDialog(this, "Debe seleccionar Nuevo o Editar.");
             return;
         }
 
         try {
+            if (jDateChooserFechaPago.getDate() == null) {
+                JOptionPane.showMessageDialog(this, "Seleccione fecha.");
+                return;
+            }
+            if (txtMontoTotal.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No hay monto calculado.");
+                return;
+            }
+
+            // INICIO TRANSACCIÓN
             conexion.setAutoCommit(false);
 
-            // 🟢 1️⃣ Obtener datos del formulario
-            String idPago = txtIdPago.getText().trim();
-            String idAlquiler = txtIdAlquiler.getText().trim();
-            java.util.Date fechaSeleccionada = jDateChooserFechaPago.getDate();
-            if (fechaSeleccionada == null) {
-                JOptionPane.showMessageDialog(this, "Debe seleccionar una fecha de pago.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            java.sql.Date fechaPago = new java.sql.Date(fechaSeleccionada.getTime());
-
-            String montoTexto = txtMontoSinIgv.getText().trim();
-            if (montoTexto.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Debe ingresar un monto válido.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            BigDecimal monto = new BigDecimal(montoTexto);
-            String metodoPago = JcmbMetodoPago.getSelectedItem().toString();
+            java.sql.Date fecha = new java.sql.Date(jDateChooserFechaPago.getDate().getTime());
+            BigDecimal monto = new BigDecimal(txtMontoSinIgv.getText());
+            String metodo = JcmbMetodoPago.getSelectedItem().toString();
             String estado = JcmbEstadoPago.getSelectedItem().toString();
+            String idAlq = txtIdAlquiler.getText();
 
-            // 🧾 2️⃣ SI ES NUEVO → usar procedimiento almacenado registrarPago
-            if (modo.equalsIgnoreCase("nuevo")) {
-
-                // 🔹 Verificar si el alquiler ya tiene un pago COMPLETADO
-                String sqlVerificar = "SELECT estado FROM Pago WHERE idAlquiler = ?";
-                try (PreparedStatement psVerificar = conexion.prepareStatement(sqlVerificar)) {
-                    psVerificar.setString(1, idAlquiler);
-                    ResultSet rsVerificar = psVerificar.executeQuery();
-
-                    while (rsVerificar.next()) {
-                        String estadoExistente = rsVerificar.getString("estado");
-                        if (estadoExistente.equalsIgnoreCase("Completado")) {
-                            JOptionPane.showMessageDialog(this,
-                                    "⚠️ Este alquiler (" + idAlquiler + ") ya tiene un pago COMPLETADO.\n"
-                                    + "No se puede registrar otro pago para él.",
-                                    "Pago duplicado", JOptionPane.WARNING_MESSAGE);
-                            conexion.rollback();
-                            return;
-                        }
+            if (modo.equals("nuevo")) {
+                // Validación extra dentro de la transacción
+                String sqlVerif = "SELECT estado FROM Pago WHERE idAlquiler = ?";
+                try (PreparedStatement psV = conexion.prepareStatement(sqlVerif)) {
+                    psV.setString(1, idAlq);
+                    ResultSet rsV = psV.executeQuery();
+                    if (rsV.next() && rsV.getString("estado").equalsIgnoreCase("Completado")) {
+                        JOptionPane.showMessageDialog(this, "Este alquiler ya fue pagado.");
+                        conexion.rollback();
+                        return; // Finally se encargará del autoCommit
                     }
                 }
 
-                // 🔹 Ejecutar SP registrarPago
                 String sql = "{call registrarPago(?,?,?,?,?)}";
                 try (CallableStatement cs = conexion.prepareCall(sql)) {
-                    cs.setString(1, idAlquiler);
-                    cs.setDate(2, fechaPago);
+                    cs.setString(1, idAlq);
+                    cs.setDate(2, fecha);
                     cs.setBigDecimal(3, monto);
-                    cs.setString(4, metodoPago);
+                    cs.setString(4, metodo);
                     cs.setString(5, estado);
                     cs.execute();
-                }
+                    JOptionPane.showMessageDialog(this, "Pago Registrado Exitosamente");
 
-                // 🔹 Recuperar último ID generado
-                String sqlUltimo = "SELECT TOP 1 idPago FROM Pago ORDER BY idPago DESC";
-                try (PreparedStatement ps = conexion.prepareStatement(sqlUltimo); ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        txtIdPago.setText(rs.getString("idPago"));
+                    PreparedStatement psId = conexion.prepareStatement("SELECT TOP 1 idPago FROM Pago ORDER BY idPago DESC");
+                    ResultSet rsId = psId.executeQuery();
+                    if (rsId.next()) {
+                        txtIdPago.setText(rsId.getString(1));
                     }
                 }
-
-                JOptionPane.showMessageDialog(this, "✅ Pago registrado correctamente.");
-
-                // ✏️ 3️⃣ SI ES EDICIÓN → actualizar pago existente
-            } else if (modo.equalsIgnoreCase("edicion")) {
-                if (idPago.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, "Debe buscar un pago antes de editarlo.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                String sqlUpdate = """
-                UPDATE Pago
-                SET idAlquiler = ?, fechaPago = ?, monto = ?, metodoPago = ?, estado = ?
-                WHERE idPago = ?
-            """;
-                try (PreparedStatement ps = conexion.prepareStatement(sqlUpdate)) {
-                    ps.setString(1, idAlquiler);
-                    ps.setDate(2, fechaPago);
-                    ps.setBigDecimal(3, monto);
-                    ps.setString(4, metodoPago);
-                    ps.setString(5, estado);
-                    ps.setString(6, idPago);
+            } else if (modo.equals("edicion")) {
+                String sql = "UPDATE Pago SET fechaPago=?, monto=?, metodoPago=?, estado=? WHERE idPago=?";
+                try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+                    ps.setDate(1, fecha);
+                    ps.setBigDecimal(2, monto);
+                    ps.setString(3, metodo);
+                    ps.setString(4, estado);
+                    ps.setString(5, txtIdPago.getText());
                     ps.executeUpdate();
+                    JOptionPane.showMessageDialog(this, "Pago Actualizado");
                 }
-
-                JOptionPane.showMessageDialog(this, "✅ Pago actualizado correctamente.");
             }
 
-            // 🧩 4️⃣ Finalizar transacción
-            conexion.commit();
-            modo = null;
+            conexion.commit(); // CONFIRMAR
             habilitarCampos(false);
+            modo = null;
 
         } catch (Exception e) {
             try {
                 conexion.rollback();
             } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(this, "Error al revertir cambios: " + ex.getMessage());
             }
-            JOptionPane.showMessageDialog(this, "❌ Error al grabar pago: " + e.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al grabar: " + e.getMessage());
         } finally {
             try {
                 conexion.setAutoCommit(true);
             } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(this, "Error al restaurar conexión: " + ex.getMessage());
             }
         }
     }//GEN-LAST:event_btnGrabarActionPerformed
 
     private void btnEliminarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarActionPerformed
-        String idPago = txtIdPago.getText().trim();
-
-        if (idPago.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Debe buscar o seleccionar un pago antes de eliminar.",
-                    "Aviso", JOptionPane.WARNING_MESSAGE);
+        if (txtIdPago.getText().isEmpty()) {
             return;
         }
-
-        int opcion = JOptionPane.showConfirmDialog(this,
-                "¿Está seguro de eliminar el pago " + idPago + "?",
-                "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-
-        if (opcion != JOptionPane.YES_OPTION) {
-            return;
-        }
-
-        try {
-            String sql = "DELETE FROM Pago WHERE idPago = ?";
-            try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-                ps.setString(1, idPago);
-                int filas = ps.executeUpdate();
-
-                if (filas > 0) {
-                    JOptionPane.showMessageDialog(this,
-                            "✅ Pago eliminado correctamente.",
-                            "Eliminado", JOptionPane.INFORMATION_MESSAGE);
-                    limpiarCampos();
-                    habilitarCampos(false);
-                } else {
-                    JOptionPane.showMessageDialog(this,
-                            "⚠️ No se encontró el pago especificado.",
-                            "Aviso", JOptionPane.WARNING_MESSAGE);
-                }
+        if (JOptionPane.showConfirmDialog(this, "¿Eliminar pago?") == 0) {
+            try {
+                PreparedStatement ps = conexion.prepareStatement("DELETE FROM Pago WHERE idPago=?");
+                ps.setString(1, txtIdPago.getText());
+                ps.executeUpdate();
+                limpiarCampos();
+                JOptionPane.showMessageDialog(this, "Eliminado");
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             }
-
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this,
-                    "❌ Error al eliminar el pago: " + e.getMessage(),
-                    "Error SQL", JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_btnEliminarActionPerformed
 
@@ -802,39 +701,194 @@ public class PanelPagos extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_txtIgvActionPerformed
 
-    // 🧮 Método para calcular IGV y monto total
-    private void calcularMontos() {
-        try {
-            String textoSinIgv = txtMontoSinIgv.getText().trim();
+    private void txtMontoSinIgvActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtMontoSinIgvActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtMontoSinIgvActionPerformed
 
-            // Si el campo está vacío, limpiar los otros
-            if (textoSinIgv.isEmpty()) {
-                txtIgv.setText("0.00");
-                txtMontoTotal.setText("0.00");
-                return;
-            }
+    // --- MÉTODOS DE DISEÑO VISUAL (Copiados y adaptados de PanelRecursos2) ---
+    
+    private void aplicarEstilosModernos() {
+        // 1. Colores y Fuentes
+        java.awt.Color colorTexto = new java.awt.Color(31, 78, 95); // Azul Petróleo
+        java.awt.Font fuenteTitulo = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 28);
+        java.awt.Font fuenteLabels = new java.awt.Font("Segoe UI", java.awt.Font.BOLD, 14);
+        java.awt.Font fuenteCampos = new java.awt.Font("Segoe UI", java.awt.Font.PLAIN, 14);
 
-            // Monto sin IGV
-            BigDecimal montoSinIgv = new BigDecimal(textoSinIgv);
+        
 
-            // IGV fijo (según BD)
-            BigDecimal igvPorcentaje = BigDecimal.valueOf(0.18);
-            BigDecimal montoIGV = montoSinIgv.multiply(igvPorcentaje);
-            BigDecimal montoConIGV = montoSinIgv.add(montoIGV);
-
-            // Mostrar con 2 decimales
-            txtIgv.setText(montoIGV.setScale(2, BigDecimal.ROUND_HALF_UP).toString());
-            txtMontoTotal.setText(montoConIGV.setScale(2, BigDecimal.ROUND_HALF_UP).toString());
-
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                    "⚠️ Ingrese un monto válido (solo números y punto decimal).",
-                    "Error de formato", JOptionPane.WARNING_MESSAGE);
-            txtIgv.setText("0.00");
-            txtMontoTotal.setText("0.00");
+        // 3. Estilizar Etiquetas (Labels)
+        javax.swing.JLabel[] labels = {
+            jLabel2, jLabel3, jLabel4, jLabel5, jLabel6, 
+            jLabel7, jLabel8, jLabel9, jLabel10
+        };
+        for (javax.swing.JLabel lbl : labels) {
+            lbl.setFont(fuenteLabels);
+            lbl.setForeground(colorTexto);
         }
+        
+        // Arreglar textos de labels para que se vean prolijos
+        jLabel2.setText("ID Alquiler:");   jLabel3.setText("DNI Turista:");
+        jLabel7.setText("ID Pago:");       jLabel5.setText("Fecha Pago:");
+        jLabel9.setText("Subtotal:");      jLabel10.setText("IGV (18%):");
+        jLabel4.setText("Total a Pagar:"); jLabel6.setText("Método:");
+        jLabel8.setText("Estado:");
+
+        // 4. Estilo de Campos de Texto (Bordes suaves)
+        javax.swing.border.Border bordeCampo = javax.swing.BorderFactory.createCompoundBorder(
+            javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200)),
+            javax.swing.BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        );
+
+        javax.swing.JTextField[] campos = {
+            txtIdAlquiler, txtIdPago, txtDniTuri, txtMontoSinIgv, txtIgv, txtMontoTotal
+        };
+        for (javax.swing.JTextField txt : campos) {
+            txt.setFont(fuenteCampos);
+            txt.setBorder(bordeCampo);
+        }
+        
+        // Estilo de Combos
+        JcmbMetodoPago.setFont(fuenteCampos);
+        JcmbEstadoPago.setFont(fuenteCampos);
+
+        // 5. ESTILIZAR BOTONES (Aquí está la clave de Recursos2)
+        // Usamos el método auxiliar para darles fondo blanco y borde
+        estilizarBoton(btnNuevo, "📄 Nuevo");
+        estilizarBoton(btnBuscar, "🔍 Buscar");
+        estilizarBoton(btnEditar, "✏️ Editar");
+        estilizarBoton(btnEliminar, "🗑️ Eliminar");
+        estilizarBoton(btnGrabar, "💾 Guardar");
+        
+        // Botones específicos de Pagos
+        estilizarBoton(btnBuscarAlquiller, "🔎"); 
+        estilizarBoton(btnPagar, "💰 Pagar");
+        estilizarBoton(btnAnular, "🚫 Anular");
+        
+        // Opcional: Hacer el botón eliminar rojo suave o dejarlo blanco
+        // btnEliminar.setForeground(java.awt.Color.RED); 
     }
 
+    // Método auxiliar idéntico al de PanelRecursos2
+    private void estilizarBoton(javax.swing.JButton btn, String texto) {
+        btn.setText(texto);
+        btn.setFont(new java.awt.Font("Segoe UI Emoji", java.awt.Font.BOLD, 12));
+        btn.setForeground(new java.awt.Color(31, 78, 95)); // Azul texto
+        btn.setBackground(java.awt.Color.WHITE);           // FONDO BLANCO
+        btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(true);
+        btn.setContentAreaFilled(true);
+        btn.setOpaque(true);
+        
+        // Borde redondeado suave o cuadrado
+        btn.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+            javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1),
+            javax.swing.BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+    }
+
+  private void corregirDistribucion() {
+        // Desactivar layout automático
+        jPanel1.setLayout(null);
+
+        // --- 1. TÍTULO (Usamos el label existente para asegurar que se vea) ---
+        jLabel1.setVisible(true); // Aseguramos que se vea
+        jLabel1.setText("GESTIÓN DE PAGOS");
+        jLabel1.setFont(new Font("Segoe UI", Font.BOLD, 26)); // Fuente grande
+        jLabel1.setForeground(new Color(31, 78, 95)); // Azul corporativo
+        jLabel1.setHorizontalAlignment(SwingConstants.CENTER);
+        // Lo ponemos bien arriba y ancho completo
+        jLabel1.setBounds(0, 30, 640, 40); 
+
+        // --- VARIABLES DE POSICIÓN (Ajustadas para bajar todo) ---
+        // Antes empezabamos en 40, ahora en 100 para dejar espacio al título
+        int yInicio = 100; 
+        
+        int col1Label = 40;
+        int col1Field = 150;
+        
+        int col2Label = 380;
+        int col2Field = 480;
+        
+        int gapY = 55; // Más separación vertical entre filas (antes 45)
+
+        // --- FILA 1: ID Alquiler y Buscar ---
+        jLabel2.setText("ID Alquiler:");
+        jLabel2.setBounds(col1Label, yInicio, 100, 30);
+        txtIdAlquiler.setBounds(col1Field, yInicio, 120, 30);
+        btnBuscarAlquiller.setBounds(280, yInicio, 50, 30); 
+
+        jLabel3.setText("DNI Turista:");
+        jLabel3.setBounds(col2Label, yInicio, 100, 30);
+        txtDniTuri.setBounds(col2Field, yInicio, 120, 30);
+
+        // --- FILA 2: ID Pago y Fecha ---
+        int yFila2 = yInicio + gapY;
+        jLabel7.setText("ID Pago:");
+        jLabel7.setBounds(col1Label, yFila2, 100, 30);
+        txtIdPago.setBounds(col1Field, yFila2, 120, 30);
+
+        jLabel5.setText("Fecha Pago:");
+        jLabel5.setBounds(col2Label, yFila2, 100, 30);
+        jDateChooserFechaPago.setBounds(col2Field, yFila2, 120, 30);
+
+        // --- FILA 3: Método y Subtotal ---
+        int yFila3 = yInicio + (gapY * 2);
+        jLabel6.setText("Método:");
+        jLabel6.setBounds(col1Label, yFila3, 100, 30);
+        JcmbMetodoPago.setBounds(col1Field, yFila3, 180, 30);
+
+        jLabel9.setText("Subtotal:");
+        jLabel9.setBounds(col2Label, yFila3, 100, 30);
+        txtMontoSinIgv.setBounds(col2Field, yFila3, 120, 30);
+
+        // --- FILA 4: Estado e IGV ---
+        int yFila4 = yInicio + (gapY * 3);
+        jLabel8.setText("Estado:");
+        jLabel8.setBounds(col1Label, yFila4, 100, 30);
+        JcmbEstadoPago.setBounds(col1Field, yFila4, 180, 30);
+
+        jLabel10.setText("IGV (18%):");
+        jLabel10.setBounds(col2Label, yFila4, 100, 30);
+        txtIgv.setBounds(col2Field, yFila4, 120, 30);
+
+        // --- FILA 5: TOTAL (Destacado) ---
+        int yFila5 = yInicio + (gapY * 4);
+        jLabel4.setText("TOTAL:");
+        jLabel4.setFont(new Font("Segoe UI", Font.BOLD, 18)); 
+        jLabel4.setBounds(col2Label, yFila5, 100, 30);
+        
+        txtMontoTotal.setBounds(col2Field, yFila5, 120, 35);
+        txtMontoTotal.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        txtMontoTotal.setForeground(new Color(0, 100, 0)); 
+
+        // --- BOTONES DE ACCIÓN (Pagar / Anular) ---
+        // Bajamos más y separamos horizontalmente
+        int yAccion = yFila5 + 50;
+        
+        // Pagar alineado a la etiqueta Total
+        btnPagar.setBounds(col2Label, yAccion, 110, 35); 
+        
+        // Anular más a la derecha (separado 20px del otro)
+        btnAnular.setBounds(col2Label + 130, yAccion, 110, 35); 
+
+        // --- BARRA INFERIOR ---
+        // Separador
+        jSeparator1.setBounds(20, yAccion + 50, 600, 10);
+
+        // Botones CRUD (Más abajo)
+        int yBotones = yAccion + 70;
+        int wBtn = 100;
+        int hBtn = 40;
+        int gapBtn = 15; 
+        int xInicial = 35; 
+
+        btnNuevo.setBounds(xInicial, yBotones, wBtn, hBtn);
+        btnBuscar.setBounds(xInicial + (wBtn + gapBtn) * 1, yBotones, wBtn, hBtn);
+        btnEditar.setBounds(xInicial + (wBtn + gapBtn) * 2, yBotones, wBtn, hBtn);
+        btnEliminar.setBounds(xInicial + (wBtn + gapBtn) * 3, yBotones, wBtn, hBtn);
+        btnGrabar.setBounds(xInicial + (wBtn + gapBtn) * 4, yBotones, wBtn, hBtn);
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JComboBox<String> JcmbEstadoPago;

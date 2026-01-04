@@ -4,11 +4,18 @@
  */
 package igu;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JTextField;
 
 /**
  *
@@ -25,35 +32,195 @@ public class PanelGestionarUsuarios extends javax.swing.JPanel {
         initComponents();
         this.conexion=conexion;
         this.nivel=nivel;
-        habilitarCampos(false);
-        cargarNiveles();
-        limpiarCampos();
-    }
-    private void limpiarCampos() {
+        // --- 1. APLICAR FONDO DEGRADADO ---
+        PanelDegradado fondo = new PanelDegradado();
+        fondo.setLayout(new java.awt.BorderLayout());
 
+        // Hacemos transparente el panel de NetBeans
+        jPanel1.setOpaque(false);
+        fondo.add(jPanel1, java.awt.BorderLayout.CENTER);
+
+        // Reemplazamos en el panel principal
+        this.setLayout(new java.awt.BorderLayout());
+        this.removeAll();
+        this.add(fondo, java.awt.BorderLayout.CENTER);
+
+        this.revalidate();
+        this.repaint();
+
+        // --- 2. LÓGICA Y DISEÑO ---
+        cargarNiveles();
+        aplicarEstilosModernos();
+        corregirDistribucion(); // Acomoda todo matemáticamente
+        
+        limpiarCampos();
+        habilitarCampos(false);
+    }
+    
+    // --- DISEÑO VISUAL ---
+    private void aplicarEstilosModernos() {
+        Color colorTexto = new Color(31, 78, 95); // Azul Petróleo
+        Font fuenteTitulo = new Font("Segoe UI", Font.BOLD, 24);
+        Font fuenteLabels = new Font("Segoe UI", Font.BOLD, 14);
+        Font fuenteCampos = new Font("Segoe UI", Font.PLAIN, 14);
+
+        // 1. Título
+        jLabel1.setFont(fuenteTitulo);
+        jLabel1.setForeground(colorTexto);
+        jLabel1.setText("GESTIÓN DE USUARIOS"); // Texto más corto y limpio
+
+        // 2. Labels
+        JLabel[] labels = {jLabel2, jLabel3, jLabel4, jLabel5, jLabel6, jLabel7};
+        String[] textos = {"ID Usuario", "Nombre Usuario", "Correo", "Contraseña", "Nivel", "Fecha Creación"};
+        
+        for (int i = 0; i < labels.length; i++) {
+            labels[i].setFont(fuenteLabels);
+            labels[i].setForeground(colorTexto);
+            labels[i].setText(textos[i]);
+        }
+
+        // 3. Inputs
+        JTextField[] campos = {txtIdUsuario, txtUserName, txtCorreo, txtContraseña};
+        javax.swing.border.Border borde = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        );
+
+        for (JTextField txt : campos) {
+            txt.setFont(fuenteCampos);
+            txt.setBorder(borde);
+        }
+        
+        // Estilo especial para ComboBox y DateChooser
+        jComboBoxNiveles.setFont(fuenteCampos);
+        jComboBoxNiveles.setBackground(Color.WHITE);
+        jDateChooserFecha.setFont(fuenteCampos);
+        jDateChooserFecha.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+
+        // 4. Separador
+        jSeparator1.setForeground(new Color(31, 78, 95));
+        jSeparator1.setBackground(new Color(31, 78, 95));
+
+        // 5. Botones
+        JButton[] botones = {btnNuevo, btnBuscarUsuario, btnEditar, btnEliminar, btnGrabar};
+        for (JButton btn : botones) {
+            estilizarBoton(btn);
+        }
+        
+        // Emojis
+        btnNuevo.setText("📄 Nuevo");
+        btnBuscarUsuario.setText("🔍"); // Icono solo
+        btnEditar.setText("✏️ Editar");
+        btnEliminar.setText("🗑️ Eliminar");
+        btnGrabar.setText("💾 Guardar");
+        
+        // Tooltip para el buscar
+        btnBuscarUsuario.setToolTipText("Buscar Usuario por ID");
+    }
+
+    private void estilizarBoton(JButton btn) {
+        btn.setFont(new Font("Segoe UI Emoji", Font.BOLD, 12));
+        btn.setForeground(new Color(31, 78, 95));
+        btn.setBackground(Color.WHITE);
+        btn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+    }
+
+    private void corregirDistribucion() {
+        jPanel1.setLayout(null); // Desactivar layout automático
+
+        // Título
+        jLabel1.setBounds(0, 20, 640, 40);
+
+        // Coordenadas
+        int xLabel = 40;
+        int xInput = 180;
+        int wInput = 350; // Ancho estándar
+        int h = 30; // Alto estándar
+        int y = 80;
+        int gap = 45; // Separación vertical
+
+        // Fila 1: ID (+ Botón Buscar pegado)
+        jLabel2.setBounds(xLabel, y, 120, h);
+        txtIdUsuario.setBounds(xInput, y, 150, h);
+        btnBuscarUsuario.setBounds(xInput + 160, y, 50, h); // Botón pequeño al lado
+
+        // Fila 2: Nombre
+        y += gap;
+        jLabel3.setBounds(xLabel, y, 130, h);
+        txtUserName.setBounds(xInput, y, wInput, h);
+
+        // Fila 3: Correo
+        y += gap;
+        jLabel4.setBounds(xLabel, y, 120, h);
+        txtCorreo.setBounds(xInput, y, wInput, h);
+
+        // Fila 4: Contraseña
+        y += gap;
+        jLabel5.setBounds(xLabel, y, 120, h);
+        txtContraseña.setBounds(xInput, y, wInput, h);
+
+        // Fila 5: Nivel
+        y += gap;
+        jLabel6.setBounds(xLabel, y, 120, h);
+        jComboBoxNiveles.setBounds(xInput, y, 200, h); // Combo no tan ancho
+
+        // Fila 6: Fecha
+        y += gap;
+        jLabel7.setBounds(xLabel, y, 120, h);
+        jDateChooserFecha.setBounds(xInput, y, 200, h);
+
+        // Separador
+        y += gap + 10;
+        jSeparator1.setBounds(20, y, 600, 10);
+
+        // Botones (Abajo)
+        int yBtn = y + 20;
+        int xBtn = 60;
+        int wBtn = 110;
+        
+        btnNuevo.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + 20;
+        btnEditar.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + 20;
+        btnEliminar.setBounds(xBtn, yBtn, wBtn, 35);
+        xBtn += wBtn + 20;
+        btnGrabar.setBounds(xBtn, yBtn, wBtn, 35);
+    }
+    
+    private void limpiarCampos() {
         txtIdUsuario.setText("");
         txtUserName.setText("");
         txtCorreo.setText("");
         txtContraseña.setText("");
-        jDateChooserFecha.setDate(null);
-        jComboBoxNiveles.setSelectedIndex(-1);
-       
+        jDateChooserFecha.setDate(new java.util.Date()); // Fecha actual por defecto
+        if (jComboBoxNiveles.getItemCount() > 0) jComboBoxNiveles.setSelectedIndex(0);
 
     }
     
 
 
     private void habilitarCampos(boolean habilitar) {
-        txtIdUsuario.setEditable(false);
-        txtUserName.setEditable(habilitar);
-        txtCorreo.setEditable(habilitar);
-        txtContraseña.setEditable(habilitar);
-       
-        // DateChooser
-        jDateChooserFecha.setEnabled(habilitar);
+       Color colorFondo = habilitar ? Color.WHITE : new Color(245, 245, 245);
 
-        // ComboBoxes
-        jComboBoxNiveles.setEditable(habilitar);
+        txtIdUsuario.setEditable(false); // ID siempre bloqueado (es automático o búsqueda)
+        txtIdUsuario.setBackground(new Color(230, 230, 230));
+
+        txtUserName.setEditable(habilitar);
+        txtUserName.setBackground(colorFondo);
+
+        txtCorreo.setEditable(habilitar);
+        txtCorreo.setBackground(colorFondo);
+
+        txtContraseña.setEditable(habilitar);
+        txtContraseña.setBackground(colorFondo);
+
+        jDateChooserFecha.setEnabled(habilitar);
+        jComboBoxNiveles.setEnabled(habilitar); // Usar setEnabled para combos
         
     }
 
@@ -72,6 +239,10 @@ public class PanelGestionarUsuarios extends javax.swing.JPanel {
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error al cargar promociones: " + e.getMessage());
         }
+        
+    }
+     private boolean esCorreoValido(String correo) {
+        return correo.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     }
 
     /**
@@ -256,182 +427,168 @@ public class PanelGestionarUsuarios extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnNuevoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNuevoActionPerformed
-        limpiarCampos();
-        habilitarCampos(true);
-        modo = "nuevo";
+        if (nivel.equalsIgnoreCase("administrador")) {
+            limpiarCampos();
+            habilitarCampos(true);
+            modo = "nuevo";
+            txtIdUsuario.setText("(Auto)");
+        } else {
+            JOptionPane.showMessageDialog(this, "Solo administradores.");
+        }
     }//GEN-LAST:event_btnNuevoActionPerformed
 
     private void btnBuscarUsuarioActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarUsuarioActionPerformed
-        // Pedir el ID de usuario al usuario mediante JOptionPane
-        String id = JOptionPane.showInputDialog(this, "Ingrese el ID del usuario a buscar (Ejemplo: U001):");
+       String id = JOptionPane.showInputDialog(this, "Ingrese ID Usuario (Ej: U001):");
+        if (id == null || id.trim().isEmpty()) return;
 
-        // Si el usuario canceló o no ingresó nada
-        if (id == null || id.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Búsqueda cancelada o vacía.");
-            return;
-        }
-
-        id = id.trim().toUpperCase(); // Normalizamos el formato del ID
-        limpiarCampos();
-
-        String sql = "SELECT * FROM ActorUsuario WHERE idUsuario = ?";
-        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, id);
+        limpiarCampos(); // Limpiamos antes de mostrar
+        
+        try {
+            String sql = "SELECT * FROM ActorUsuario WHERE idUsuario = ?";
+            PreparedStatement ps = conexion.prepareStatement(sql);
+            ps.setString(1, id.trim());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                // Mostrar los datos del usuario encontrado
                 txtIdUsuario.setText(rs.getString("idUsuario"));
                 txtUserName.setText(rs.getString("nameUsuario"));
                 txtCorreo.setText(rs.getString("correo"));
                 txtContraseña.setText(rs.getString("contraseña"));
                 jDateChooserFecha.setDate(rs.getDate("fechaRegistro"));
 
-                // Buscar y seleccionar el nombre del nivel correspondiente
+                // Seleccionar Nivel en el Combo
                 String idNivel = rs.getString("idNivel");
-                PreparedStatement psNivel = conexion.prepareStatement(
-                        "SELECT nombreNivel FROM Nivel WHERE idNivel = ?");
-                psNivel.setString(1, idNivel);
-                ResultSet rsN = psNivel.executeQuery();
-                if (rsN.next()) {
-                    jComboBoxNiveles.setSelectedItem(rsN.getString("nombreNivel"));
-                }
+                seleccionarNivelPorId(idNivel);
 
-                JOptionPane.showMessageDialog(this, "Usuario encontrado correctamente.");
                 habilitarCampos(false);
                 modo = "consulta";
+                JOptionPane.showMessageDialog(this, "Usuario encontrado.");
             } else {
-                JOptionPane.showMessageDialog(this, "No se encontró ningún usuario con el ID: " + id);
+                JOptionPane.showMessageDialog(this, "Usuario no encontrado.");
             }
-
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al buscar usuario: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error SQL: " + e.getMessage());
         }
     }//GEN-LAST:event_btnBuscarUsuarioActionPerformed
     
-    private boolean esCorreoValido(String correo) {
-        // Expresión regular para correos comunes (sin símbolos raros)
-        String patronCorreo = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
-        return correo.matches(patronCorreo);
+    // Método auxiliar para poner el combo en la posición correcta
+    private void seleccionarNivelPorId(String idNivel) {
+        try {
+            PreparedStatement ps = conexion.prepareStatement("SELECT nombreNivel FROM Nivel WHERE idNivel = ?");
+            ps.setString(1, idNivel);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                jComboBoxNiveles.setSelectedItem(rs.getString("nombreNivel"));
+            }
+        } catch (SQLException e) {
+            System.out.println("Error seleccionando nivel: " + e.getMessage());
+        }
     }
+    
 
     private void btnEditarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEditarActionPerformed
-        if (txtIdUsuario.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Primero busque un usuario para editar.");
+        if (!nivel.equalsIgnoreCase("administrador")) {
+            JOptionPane.showMessageDialog(this, "Acceso denegado.");
+            return;
+        }
+        if (txtIdUsuario.getText().isEmpty() || txtIdUsuario.getText().equals("(Auto)")) {
+            JOptionPane.showMessageDialog(this, "Busque un usuario primero.");
             return;
         }
         habilitarCampos(true);
         modo = "edicion";
-        JOptionPane.showMessageDialog(null,"modo edicion activado ");
     }//GEN-LAST:event_btnEditarActionPerformed
 
     private void btnEliminarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarActionPerformed
-          String id = txtIdUsuario.getText().trim();
-        if (id.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Ingrese o busque un usuario para eliminar.");
+        if (!nivel.equalsIgnoreCase("administrador")) {
             return;
         }
 
-        int confirm = JOptionPane.showConfirmDialog(this, "¿Eliminar este usuario?", "Confirmar", JOptionPane.YES_NO_OPTION);
-        if (confirm != JOptionPane.YES_OPTION) return;
+        String id = txtIdUsuario.getText().trim();
+        if (id.isEmpty() || id.equals("(Auto)")) {
+            JOptionPane.showMessageDialog(this, "Busque un usuario para eliminar.");
+            return;
+        }
 
-        String sql = "DELETE FROM ActorUsuario WHERE idUsuario = ?";
-        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-            ps.setString(1, id);
-            ps.executeUpdate();
-            JOptionPane.showMessageDialog(this, "Usuario eliminado correctamente.");
-            limpiarCampos();
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al eliminar usuario: " + e.getMessage());
+        if (JOptionPane.showConfirmDialog(this, "¿Eliminar usuario " + id + "?") == JOptionPane.YES_OPTION) {
+            try {
+                PreparedStatement ps = conexion.prepareStatement("DELETE FROM ActorUsuario WHERE idUsuario = ?");
+                ps.setString(1, id);
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Eliminado.");
+                limpiarCampos();
+                modo = null;
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+            }
         }
     }//GEN-LAST:event_btnEliminarActionPerformed
 
     private void btnGrabarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGrabarActionPerformed
-        // === Validación de campos ===
-        String nombre = txtUserName.getText().trim();
-        String correo = txtCorreo.getText().trim();
-        String pass = txtContraseña.getText().trim();
-        java.util.Date fecha = jDateChooserFecha.getDate();
-        String nivelSel = (String) jComboBoxNiveles.getSelectedItem();
-
-        if (nombre.isEmpty() || correo.isEmpty() || pass.isEmpty() || fecha == null || nivelSel == null) {
-            JOptionPane.showMessageDialog(this, "Complete todos los campos antes de grabar.", "Campos incompletos", JOptionPane.WARNING_MESSAGE);
+       if (modo == null || modo.isEmpty() || modo.equals("consulta")) {
+            JOptionPane.showMessageDialog(this, "Use 'Nuevo' o 'Editar' primero.");
             return;
         }
-        
-        // === Validar formato de correo ===
-        if (!esCorreoValido(correo)) {
-            JOptionPane.showMessageDialog(this,
-                    "Ingrese un correo válido.\nEjemplo: usuario@dominio.com",
-                    "Formato de correo incorrecto",
-                    JOptionPane.WARNING_MESSAGE);
-            txtCorreo.requestFocus();
+
+        // Validaciones básicas
+        if (txtUserName.getText().trim().isEmpty() || txtCorreo.getText().trim().isEmpty() || 
+            txtContraseña.getText().trim().isEmpty() || jDateChooserFecha.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "Complete todos los campos.");
+            return;
+        }
+
+        if (!esCorreoValido(txtCorreo.getText().trim())) {
+            JOptionPane.showMessageDialog(this, "Correo inválido.");
             return;
         }
 
         try {
-            // === Obtener idNivel según nombre ===
+            // Obtener ID del nivel seleccionado
             String idNivel = null;
-            try (PreparedStatement psNivel = conexion.prepareStatement(
-                    "SELECT idNivel FROM Nivel WHERE nombreNivel = ?")) {
-                psNivel.setString(1, nivelSel);
-                try (ResultSet rs = psNivel.executeQuery()) {
-                    if (rs.next()) {
-                        idNivel = rs.getString("idNivel");
-                    } else {
-                        JOptionPane.showMessageDialog(this, "El nivel seleccionado no existe en la base de datos.");
-                        return;
-                    }
-                }
-            }
-
-            // === Lógica según modo ===
-            if ("nuevo".equalsIgnoreCase(modo)) {
-                // ======= MODO NUEVO: usa el SP registrarUsuario =======
-                try (java.sql.CallableStatement cs = conexion.prepareCall("{ call dbo.registrarUsuario(?, ?, ?, ?, ?, ?) }")) {
-                    cs.setString(1, nombre);
-                    cs.setString(2, correo);
-                    cs.setString(3, pass);
-                    cs.setDate(4, new java.sql.Date(fecha.getTime()));
-                    cs.setString(5, idNivel);
-                    cs.registerOutParameter(6, java.sql.Types.CHAR);
-                    cs.execute();
-
-                    String nuevoId = cs.getString(6);
-                    txtIdUsuario.setText(nuevoId); // lo mostramos en pantalla
-                    JOptionPane.showMessageDialog(this, "Usuario registrado correctamente con ID: " + nuevoId);
-                }
-
-            } else if ("edicion".equalsIgnoreCase(modo)) {
-                // ======= MODO EDITAR: actualiza con UPDATE =======
-                String sql = "UPDATE ActorUsuario SET nameUsuario=?, correo=?, contraseña=?, fechaRegistro=?, idNivel=? WHERE idUsuario=?";
-                try (PreparedStatement ps = conexion.prepareStatement(sql)) {
-                    ps.setString(1, nombre);
-                    ps.setString(2, correo);
-                    ps.setString(3, pass);
-                    ps.setDate(4, new java.sql.Date(fecha.getTime()));
-                    ps.setString(5, idNivel);
-                    ps.setString(6, txtIdUsuario.getText().trim());
-                    int filas = ps.executeUpdate();
-
-                    if (filas > 0) {
-                        JOptionPane.showMessageDialog(this, "Usuario actualizado correctamente.");
-                    } else {
-                        JOptionPane.showMessageDialog(this, "No se encontró el usuario para actualizar.", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-
-            } else {
-                JOptionPane.showMessageDialog(this, "Seleccione primero 'Nuevo' o 'Editar' antes de grabar.", "Modo no definido", JOptionPane.WARNING_MESSAGE);
+            String nivelNombre = (String) jComboBoxNiveles.getSelectedItem();
+            PreparedStatement psNivel = conexion.prepareStatement("SELECT idNivel FROM Nivel WHERE nombreNivel = ?");
+            psNivel.setString(1, nivelNombre);
+            ResultSet rsNivel = psNivel.executeQuery();
+            if (rsNivel.next()) idNivel = rsNivel.getString("idNivel");
+            else {
+                JOptionPane.showMessageDialog(this, "Error obteniendo nivel.");
                 return;
             }
 
-            // === Post-operación ===
+            // GUARDAR
+            if (modo.equals("nuevo")) {
+                CallableStatement cs = conexion.prepareCall("{ call dbo.registrarUsuario(?, ?, ?, ?, ?, ?) }");
+                cs.setString(1, txtUserName.getText().trim());
+                cs.setString(2, txtCorreo.getText().trim());
+                cs.setString(3, txtContraseña.getText().trim());
+                cs.setDate(4, new java.sql.Date(jDateChooserFecha.getDate().getTime()));
+                cs.setString(5, idNivel);
+                cs.registerOutParameter(6, java.sql.Types.CHAR);
+                cs.execute();
+                
+                String nuevoId = cs.getString(6);
+                txtIdUsuario.setText(nuevoId);
+                JOptionPane.showMessageDialog(this, "Usuario creado: " + nuevoId);
+
+            } else if (modo.equals("edicion")) {
+                String sql = "UPDATE ActorUsuario SET nameUsuario=?, correo=?, contraseña=?, fechaRegistro=?, idNivel=? WHERE idUsuario=?";
+                PreparedStatement ps = conexion.prepareStatement(sql);
+                ps.setString(1, txtUserName.getText().trim());
+                ps.setString(2, txtCorreo.getText().trim());
+                ps.setString(3, txtContraseña.getText().trim());
+                ps.setDate(4, new java.sql.Date(jDateChooserFecha.getDate().getTime()));
+                ps.setString(5, idNivel);
+                ps.setString(6, txtIdUsuario.getText().trim());
+                
+                if (ps.executeUpdate() > 0) JOptionPane.showMessageDialog(this, "Actualizado correctamente.");
+                else JOptionPane.showMessageDialog(this, "Error al actualizar.");
+            }
+
             habilitarCampos(false);
-            modo = "";
+            modo = "consulta";
 
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al grabar usuario: " + e.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error BD: " + e.getMessage());
         }
     }//GEN-LAST:event_btnGrabarActionPerformed
 
