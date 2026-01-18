@@ -124,8 +124,8 @@ public class VentanaPromociones extends javax.swing.JFrame {
         });
     }
 
-     private void cargarDatosPromociones() {
-       // Modelo que NO permite edición
+    private void cargarDatosPromociones() {
+        // Modelo que NO permite edición
         DefaultTableModel modelo = new DefaultTableModel() {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -133,14 +133,16 @@ public class VentanaPromociones extends javax.swing.JFrame {
             }
         };
 
-        // Definimos columnas manualmente para asegurar orden
+        // 1. Definimos columnas (Agregamos la nueva columan 'Valor %')
         modelo.addColumn("ID");
-        modelo.addColumn("Descripción");
+        modelo.addColumn("Descripción (Input)");
         modelo.addColumn("Tipo");
         modelo.addColumn("Condición (Horas)");
+        modelo.addColumn("Calculado (%)"); // <--- NUEVA COLUMNA
 
         try {
-            String sql = "SELECT idPromocion, descripcion, tipo, condicionHoras FROM Promocion";
+            // 2. Actualizamos la Query para traer el campo 'porcentaje'
+            String sql = "SELECT idPromocion, descripcion, tipo, condicionHoras, porcentaje FROM Promocion";
             Statement st = conexion.createStatement();
             ResultSet rs = st.executeQuery(sql);
 
@@ -149,26 +151,27 @@ public class VentanaPromociones extends javax.swing.JFrame {
                     rs.getString("idPromocion"),
                     rs.getString("descripcion"),
                     rs.getString("tipo"),
-                    rs.getInt("condicionHoras") // Usamos getInt para que no salga "5.0"
+                    rs.getInt("condicionHoras"),
+                    rs.getDouble("porcentaje") // <--- Traemos el valor numérico limpio
                 };
                 modelo.addRow(fila);
             }
 
             tblPromociones.setModel(modelo);
-            
-            // Ajustar anchos de columna (Opcional, pero se ve mejor)
+
+            // 3. Ajustar anchos de columna
             if (tblPromociones.getColumnCount() > 0) {
                 tblPromociones.getColumnModel().getColumn(0).setPreferredWidth(50);  // ID
-                tblPromociones.getColumnModel().getColumn(1).setPreferredWidth(250); // Descripción larga
+                tblPromociones.getColumnModel().getColumn(1).setPreferredWidth(200); // Desc (reducido un poco)
                 tblPromociones.getColumnModel().getColumn(2).setPreferredWidth(100); // Tipo
-                tblPromociones.getColumnModel().getColumn(3).setPreferredWidth(50);  // Horas
+                tblPromociones.getColumnModel().getColumn(3).setPreferredWidth(80);  // Condición
+                tblPromociones.getColumnModel().getColumn(4).setPreferredWidth(80);  // Valor % (Nuevo)
             }
 
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error al cargar: " + e.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
         }
     }
-
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always

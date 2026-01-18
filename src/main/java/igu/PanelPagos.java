@@ -474,41 +474,68 @@ public class PanelPagos extends javax.swing.JPanel {
    
     private void btnBuscarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBuscarActionPerformed
         String id = JOptionPane.showInputDialog("Ingrese ID Pago:");
-        if (id == null) {
+        if (id == null || id.trim().isEmpty()) {
             return;
         }
 
         String sql = "SELECT * FROM Pago WHERE idPago = ?";
+
         try (PreparedStatement ps = conexion.prepareStatement(sql)) {
             ps.setString(1, id);
             ResultSet rs = ps.executeQuery();
+
             if (rs.next()) {
+                // 1. Cargar datos básicos
                 txtIdPago.setText(rs.getString("idPago"));
                 txtIdAlquiler.setText(rs.getString("idAlquiler"));
-                txtMontoSinIgv.setText(rs.getBigDecimal("monto").toString());
                 jDateChooserFechaPago.setDate(rs.getDate("fechaPago"));
 
+                // 2. Cargar Combos
                 seleccionarItemIgnoreCase(JcmbMetodoPago, rs.getString("metodoPago"));
                 seleccionarItemIgnoreCase(JcmbEstadoPago, rs.getString("estado"));
 
+                // --- CORRECCIÓN AQUÍ ---
+                // 3. Obtenemos el monto de la BD (que es el TOTAL con IGV)
+                java.math.BigDecimal totalEnBD = rs.getBigDecimal("montoConIGV");
+
+                // 4. Lo ponemos DIRECTAMENTE en la caja de Total
+                // NO calcules el subtotal aquí. Solo pon el total.
+                txtMontoTotal.setText(totalEnBD.toString());
+
+                // 5. Ahora sí llamamos a calcularMontos()
+                // Como txtMontoTotal YA TIENE DATOS, la función solita dividirá entre 1.18
+                // y llenará txtMontoSinIgv y txtIgv correctamente.
                 calcularMontos();
 
-                PreparedStatement psDni = conexion.prepareStatement(
-                        "SELECT t.dni FROM Turista t JOIN Alquiler a ON a.idTurista = t.idTurista WHERE a.idAlquiler=?");
-                psDni.setString(1, txtIdAlquiler.getText());
-                ResultSet rsDni = psDni.executeQuery();
-                if (rsDni.next()) {
-                    txtDniTuri.setText(rsDni.getString("dni"));
-                }
+                // 6. Cargar DNI
+                cargarDniTurista(txtIdAlquiler.getText());
 
             } else {
-                JOptionPane.showMessageDialog(this, "Pago no encontrado");
+                JOptionPane.showMessageDialog(this, "Pago no encontrado con ID: " + id);
+                limpiarCampos();
             }
+
         } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error SQL: " + e.getMessage());
             e.printStackTrace();
         }
     }//GEN-LAST:event_btnBuscarActionPerformed
 
+    // Método auxiliar para mantener el código limpio
+    private void cargarDniTurista(String idAlquiler) {
+        String sql = "SELECT t.dni FROM Turista t "
+                + "INNER JOIN Alquiler a ON a.idTurista = t.idTurista "
+                + "WHERE a.idAlquiler = ?";
+        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+            ps.setString(1, idAlquiler);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                txtDniTuri.setText(rs.getString("dni"));
+            }
+        } catch (SQLException ex) {
+            System.out.println("Error cargando DNI: " + ex.getMessage());
+        }
+    }
     private void btnNuevoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNuevoActionPerformed
         limpiarCampos();
         habilitarCampos(true);

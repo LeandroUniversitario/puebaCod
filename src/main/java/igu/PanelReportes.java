@@ -32,25 +32,26 @@ public class PanelReportes extends PanelDegradado {
     // ======================================================
     private void prepararBoletaEstandar() {
         String idPago = JOptionPane.showInputDialog(this, "Ingrese el ID del Pago (Ej: P008):", "Generar Boleta de Alquiler", JOptionPane.QUESTION_MESSAGE);
-        
-        if (idPago == null || idPago.trim().isEmpty()) return;
+
+        if (idPago == null || idPago.trim().isEmpty()) {
+            return;
+        }
         idPago = idPago.trim().toUpperCase();
 
         try {
-            // 1. CONSULTA COMPLETA (Pago + Alquiler + Turista + Promoción)
             String sql = """
-                SELECT 
-                    p.idPago, p.fechaPago, p.montoConIGV, p.metodoPago,
-                    a.idAlquiler, a.mora, 
-                    t.nombre, t.apellidos, t.dni,
-                    pr.descripcion AS promoDesc
-                FROM Pago p
-                JOIN Alquiler a ON p.idAlquiler = a.idAlquiler
-                JOIN Turista t ON a.idTurista = t.idTurista
-                LEFT JOIN Promocion pr ON a.idPromocion = pr.idPromocion
-                WHERE p.idPago = ? AND p.estado = 'Completado'
-            """;
-            
+            SELECT 
+                p.idPago, p.fechaPago, p.metodoPago,
+                a.idAlquiler, a.subtotal, a.montoDescuento, -- Usamos las columnas desglosadas
+                t.nombre, t.apellidos, t.dni,
+                pr.descripcion AS promoDesc
+            FROM Pago p
+            JOIN Alquiler a ON p.idAlquiler = a.idAlquiler
+            JOIN Turista t ON a.idTurista = t.idTurista
+            LEFT JOIN Promocion pr ON a.idPromocion = pr.idPromocion
+            WHERE p.idPago = ? AND p.estado = 'Completado'
+        """;
+
             PreparedStatement ps = conexion.prepareStatement(sql);
             ps.setString(1, idPago);
             ResultSet rs = ps.executeQuery();
@@ -60,59 +61,49 @@ public class PanelReportes extends PanelDegradado {
                 return;
             }
 
-            // 2. RECUPERAR DATOS BÁSICOS
+            // Datos Básicos
             String idAlquiler = rs.getString("idAlquiler");
-            // Usamos Timestamp para tener FECHA y HORA
-            java.sql.Timestamp fechaHoraPago = new java.sql.Timestamp(System.currentTimeMillis());
+            java.sql.Timestamp fechaHoraPago = rs.getTimestamp("fechaPago");
             String metodoPago = rs.getString("metodoPago");
             String cliente = rs.getString("nombre") + " " + rs.getString("apellidos");
             String dni = rs.getString("dni");
             String promoDesc = rs.getString("promoDesc");
-
-            // 3. MATEMÁTICA: PAGO TOTAL - MORA = ALQUILER NETO PAGADO
-            double totalPagado = rs.getDouble("montoConIGV"); 
-            double moraRegistrada = rs.getDouble("mora");    
-            if (rs.wasNull()) moraRegistrada = 0.0;
-
-            double montoAlquilerNeto = totalPagado - moraRegistrada;
-
-            if (montoAlquilerNeto <= 0) {
-                 JOptionPane.showMessageDialog(this, "El pago corresponde solo a mora o es inválido.");
-                 return;
+            if (promoDesc == null) {
+                promoDesc = "";
             }
 
-            // 4. CÁLCULO DE DESCUENTO (Retroactivo)
-            // Si hubo descuento, calculamos cuál era el precio original para mostrarlo
-            double porcentajeDesc = extraerPorcentaje(promoDesc); // Método auxiliar que ya tienes
-            double montoDescuento = 0.0;
-            double subtotalBruto = montoAlquilerNeto;
+            // --- CORRECCIÓN LÓGICA: EXCLUIR MORA ---
+            // Leemos los costos del servicio puro desde la BD
+            double subtotalServicio = rs.getDouble("subtotal");      // Precio lista
+            double descuento = rs.getDouble("montoDescuento");       // Descuento ganado
 
-            if (porcentajeDesc > 0) {
-                // Ejemplo: Pagó 90 con 10% desc -> Original era 100
-                subtotalBruto = montoAlquilerNeto / (1.0 - porcentajeDesc);
-                montoDescuento = subtotalBruto - montoAlquilerNeto;
+            // Calculamos el Total de ESTA boleta (Solo Alquiler)
+            // Ignoramos lo que diga la tabla Pago o la columna Mora
+            double totalSoloAlquiler = subtotalServicio - descuento;
+
+            // Validación de seguridad (no imprimir negativos)
+            if (totalSoloAlquiler < 0) {
+                totalSoloAlquiler = 0;
             }
 
-            // 5. LLAMAR AL PDF CON TODOS LOS DATOS
+            // Generar PDF
             generarPDFBoletaEstandar(
-                idAlquiler,
-                idPago,
-                fechaHoraPago, // Enviamos timestamp
-                metodoPago,
-                cliente,
-                dni,
-                montoAlquilerNeto, // Lo que pagó finalmente por alquiler
-                subtotalBruto,     // Precio antes de descuento
-                montoDescuento,    // Cuánto ahorró
-                promoDesc          // Nombre de la promo
+                    idAlquiler,
+                    idPago,
+                    fechaHoraPago,
+                    metodoPago,
+                    cliente,
+                    dni,
+                    totalSoloAlquiler, // <--- Enviamos el monto SIN mora
+                    subtotalServicio, // <--- Enviamos el subtotal puro
+                    descuento, // <--- Enviamos el descuento
+                    promoDesc
             );
 
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error al preparar boleta: " + e.getMessage());
-            e.printStackTrace();
         }
     }
-
     private void generarPDFBoletaEstandar(String idAlquiler, String idPago, java.sql.Timestamp fechaHora, String metodoPago, String cliente, String dni, double montoFinal, double montoBruto, double descuento, String nombrePromo) {
         String ruta = crearRuta("TICKET_ALQ_" + idAlquiler + ".pdf");
 
@@ -280,16 +271,7 @@ public class PanelReportes extends PanelDegradado {
     }
    
 
-    private double extraerPorcentaje(String texto) {
-        if (texto == null) {
-            return 0.0;
-        }
-        texto = texto.replaceAll("[^0-9]", "");
-        if (texto.isEmpty()) {
-            return 0.0;
-        }
-        return Double.parseDouble(texto) / 100.0;
-    }
+    
 
 
     private void initComponents() {
@@ -474,6 +456,7 @@ public class PanelReportes extends PanelDegradado {
         });
         return boton;
     }
+    
     private void generarPDFBoletaMora(String idAlquiler, String cliente, String dni, double moraTotal) {
         String ruta = crearRuta("TICKET_MORA_" + idAlquiler + ".pdf");
 
@@ -698,8 +681,6 @@ public class PanelReportes extends PanelDegradado {
     
 
     // ======================================================
-   
-
     // ======================================================
     // MÉTODOS DE GENERACIÓN DE REPORTES
     // ======================================================
@@ -712,8 +693,6 @@ public class PanelReportes extends PanelDegradado {
         return rutaCarpeta + nombreArchivo;
     }
 
-    
-
     private void abrirPDF(String ruta) {
         try {
             Desktop.getDesktop().open(new File(ruta));
@@ -724,66 +703,78 @@ public class PanelReportes extends PanelDegradado {
 
     // ======================================================
     // REPORTE DE TURISTAS (orden alfabético)
-   private void generarReporteTuristas() {
-        String ruta = crearRuta("reporte_turistas.pdf");
-        
-        // Colores Corporativos (Puedes cambiarlos por los de tu empresa)
-        BaseColor colorPrimario = new BaseColor(33, 97, 140); // Azul oscuro profesional
-        BaseColor colorFondoGris = new BaseColor(242, 243, 244); // Gris muy suave
+    private void generarReporteTuristas() {
+
+        String ruta = crearRuta("reporte_turistas_valor.pdf");
+
+        // Colores
+        BaseColor colorPrimario = new BaseColor(33, 97, 140);
+        BaseColor colorFondoGris = new BaseColor(242, 243, 244);
 
         try {
-            // Configuración del documento con márgenes más amplios
-            Document doc = new Document(PageSize.A4, 30, 30, 40, 40);
+            Document doc = new Document(PageSize.A4.rotate(), 20, 20, 30, 30); // ROTATE: Hoja horizontal para que quepa todo
             PdfWriter.getInstance(doc, new FileOutputStream(ruta));
             doc.open();
 
-            // 1. ENCABEZADO CON FECHA
-            agregarEncabezadoProfesional(doc, "LISTADO GENERAL DE TURISTAS", colorPrimario);
+            // 1. ENCABEZADO
+            agregarEncabezadoProfesional(doc, "CARTERA DE CLIENTES Y RENDIMIENTO", colorPrimario);
 
-            // 2. CONFIGURACIÓN DE LA TABLA
-            PdfPTable tabla = new PdfPTable(6);
+            // 2. CONFIGURACIÓN DE LA TABLA (Ahora 8 Columnas)
+            // Agregamos: N° Viajes y Total Gastado
+            PdfPTable tabla = new PdfPTable(8);
             tabla.setWidthPercentage(100);
-            // Ajustamos anchos: ID corto, Nombres largos, DNI medio...
-            // Suma de proporciones: 1+3+3+2+2+2.5 = 13.5 partes
-            tabla.setWidths(new float[]{1f, 3f, 3f, 2f, 2f, 2.5f}); 
-            tabla.setSpacingBefore(20f); // Espacio entre título y tabla
 
-            // 3. CABECERA DE TABLA (Estilizada)
-            String[] columnas = {"ID", "Nombres", "Apellidos", "DNI / Pasaporte", "Nacionalidad", "Contacto"};
+            // Ajustamos anchos: ID, Nom, Ape, DNI, Nac, Contacto, Viajes, $$
+            tabla.setWidths(new float[]{0.8f, 2.5f, 2.5f, 1.5f, 1.5f, 2f, 1f, 1.5f});
+            tabla.setSpacingBefore(15f);
+
+            // 3. CABECERA
+            String[] columnas = {"ID", "Nombres", "Apellidos", "DNI", "Nacionalidad", "Contacto", "Alq.", "Inv. Total"};
             for (String col : columnas) {
                 tabla.addCell(crearCeldaHeader(col, colorPrimario));
             }
 
-            // 4. CUERPO DE DATOS (Con filas alternadas)
+            // 4. CONSULTA SQL INTELIGENTE
+            // Usamos subconsultas para calcular los datos financieros al vuelo
+            // GRACIAS A TU NUEVA BD, 'SUM(a.total)' ahora es matemáticamente exacto (incluye moras y descuentos)
             String sql = """
-                SELECT idTurista, nombre, apellidos, dni, nacionalidad, contacto
-                FROM Turista
-                ORDER BY apellidos ASC, nombre ASC
-            """;
+            SELECT 
+                t.idTurista, t.nombre, t.apellidos, t.dni, t.nacionalidad, t.contacto,
+                (SELECT COUNT(*) FROM Alquiler a WHERE a.idTurista = t.idTurista) AS numViajes,
+                (SELECT ISNULL(SUM(a.total), 0) FROM Alquiler a WHERE a.idTurista = t.idTurista) AS totalGastado
+            FROM Turista t
+            ORDER BY totalGastado DESC -- Ordenamos por quién gasta más (Mejor para el negocio)
+        """;
 
             try (Statement st = conexion.createStatement(); ResultSet rs = st.executeQuery(sql)) {
                 boolean filaImpar = true;
-                
+
                 while (rs.next()) {
                     BaseColor colorFondo = filaImpar ? BaseColor.WHITE : colorFondoGris;
-                    
-                    // Usamos un helper para limpiar datos nulos
+
+                    // Datos Personales
                     tabla.addCell(crearCeldaData(rs.getString("idTurista"), colorFondo, Element.ALIGN_CENTER));
                     tabla.addCell(crearCeldaData(rs.getString("nombre"), colorFondo, Element.ALIGN_LEFT));
                     tabla.addCell(crearCeldaData(rs.getString("apellidos"), colorFondo, Element.ALIGN_LEFT));
                     tabla.addCell(crearCeldaData(rs.getString("dni"), colorFondo, Element.ALIGN_CENTER));
                     tabla.addCell(crearCeldaData(rs.getString("nacionalidad"), colorFondo, Element.ALIGN_CENTER));
                     tabla.addCell(crearCeldaData(rs.getString("contacto"), colorFondo, Element.ALIGN_LEFT));
-                    
-                    filaImpar = !filaImpar; // Alternar color
+
+                    // Datos Financieros (Nuevos)
+                    tabla.addCell(crearCeldaData(rs.getString("numViajes"), colorFondo, Element.ALIGN_CENTER));
+
+                    double gastado = rs.getDouble("totalGastado");
+                    tabla.addCell(crearCeldaData("S/ " + String.format("%.2f", gastado), colorFondo, Element.ALIGN_RIGHT));
+
+                    filaImpar = !filaImpar;
                 }
             }
 
             doc.add(tabla);
 
-            // 5. PIE DE REPORTE (Resumen)
+            // 5. PIE
             doc.add(new Paragraph("\n"));
-            Paragraph fin = new Paragraph("Fin del reporte - Documento generado por el sistema.", 
+            Paragraph fin = new Paragraph("Reporte ordenado por nivel de inversión del cliente.",
                     new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.ITALIC, BaseColor.GRAY));
             fin.setAlignment(Element.ALIGN_CENTER);
             doc.add(fin);
@@ -796,34 +787,34 @@ public class PanelReportes extends PanelDegradado {
             e.printStackTrace();
         }
     }
-   // --- ESTILOS DE REPORTE PROFESIONAL ---
+    // --- ESTILOS DE REPORTE PROFESIONAL ---
 
     // 1. Encabezado con Título y Fecha alineados
     private void agregarEncabezadoProfesional(Document doc, String titulo, BaseColor color) throws DocumentException {
         // Tabla invisible de 2 columnas para el encabezado
         PdfPTable headerTable = new PdfPTable(2);
         headerTable.setWidthPercentage(100);
-        
+
         // Título Empresa / Reporte
         com.itextpdf.text.Font fontTitulo = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 14, com.itextpdf.text.Font.BOLD, color);
         PdfPCell cellTitulo = new PdfPCell(new Paragraph(titulo, fontTitulo));
         cellTitulo.setBorder(Rectangle.NO_BORDER);
         cellTitulo.setVerticalAlignment(Element.ALIGN_BOTTOM);
-        
+
         // Fecha y Hora actual
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
         String fechaStr = "Fecha: " + sdf.format(new java.util.Date());
         com.itextpdf.text.Font fontFecha = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 9, com.itextpdf.text.Font.NORMAL, BaseColor.GRAY);
-        
+
         PdfPCell cellFecha = new PdfPCell(new Paragraph("ALQUILERES DEL NORTE S.A.C.\n" + fechaStr, fontFecha));
         cellFecha.setBorder(Rectangle.NO_BORDER);
         cellFecha.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        
+
         headerTable.addCell(cellTitulo);
         headerTable.addCell(cellFecha);
-        
+
         doc.add(headerTable);
-        
+
         // Línea separadora de color
         com.itextpdf.text.pdf.draw.LineSeparator linea = new com.itextpdf.text.pdf.draw.LineSeparator();
         linea.setLineColor(color);
@@ -849,7 +840,7 @@ public class PanelReportes extends PanelDegradado {
     private PdfPCell crearCeldaData(String texto, BaseColor colorFondo, int alineacion) {
         // Validamos null para que no salga la palabra "null"
         String textoFinal = (texto == null || texto.equalsIgnoreCase("null")) ? "-" : texto;
-        
+
         com.itextpdf.text.Font fontData = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.NORMAL, BaseColor.DARK_GRAY);
         PdfPCell cell = new PdfPCell(new Paragraph(textoFinal, fontData));
         cell.setBackgroundColor(colorFondo);
@@ -862,11 +853,11 @@ public class PanelReportes extends PanelDegradado {
     // ======================================================
     // REPORTE DE RECURSOS
     // ======================================================
-   private void generarReporteRecursos() {
+    private void generarReporteRecursos() {
         String ruta = crearRuta("reporte_recursos.pdf");
-        
+
         // Colores Corporativos
-        BaseColor colorPrimario = new BaseColor(33, 97, 140); 
+        BaseColor colorPrimario = new BaseColor(33, 97, 140);
         BaseColor colorFondoGris = new BaseColor(242, 243, 244);
 
         try {
@@ -883,10 +874,10 @@ public class PanelReportes extends PanelDegradado {
             PdfPTable tabla = new PdfPTable(6);
             tabla.setWidthPercentage(100);
             tabla.setSpacingBefore(15f);
-            
+
             // 3. ANCHOS INTELIGENTES
             // Le damos el 40% del espacio a la Descripción para que se lea bien
-            float[] anchos = {1f, 2.5f, 4.5f, 1.5f, 1.5f, 2f}; 
+            float[] anchos = {1f, 2.5f, 4.5f, 1.5f, 1.5f, 2f};
             tabla.setWidths(anchos);
 
             // Cabeceras (Sin Cantidad)
@@ -897,7 +888,7 @@ public class PanelReportes extends PanelDegradado {
 
             // 4. CONSULTA SQL (Sin columna cantidad)
             String sql = "SELECT idRecursos, tipo, descripcion, tarifaHora, estado, ubicacion FROM Recursos ORDER BY tipo, estado";
-            
+
             try (Statement st = conexion.createStatement(); ResultSet rs = st.executeQuery(sql)) {
                 boolean filaImpar = true;
                 while (rs.next()) {
@@ -905,10 +896,10 @@ public class PanelReportes extends PanelDegradado {
 
                     // ID
                     tabla.addCell(crearCeldaData(rs.getString("idRecursos"), colorFondo, Element.ALIGN_CENTER));
-                    
+
                     // Tipo (Ej: Cuatrimoto)
                     tabla.addCell(crearCeldaData(rs.getString("tipo"), colorFondo, Element.ALIGN_LEFT));
-                    
+
                     // Descripción (Control de longitud)
                     String desc = rs.getString("descripcion");
                     if (desc != null && desc.length() > 45) { // Permitimos más texto por ser horizontal
@@ -935,7 +926,7 @@ public class PanelReportes extends PanelDegradado {
 
             // Pie de página
             doc.add(new Paragraph("\n"));
-            Paragraph fin = new Paragraph("Inventario actualizado al " + new java.util.Date(), 
+            Paragraph fin = new Paragraph("Inventario actualizado al " + new java.util.Date(),
                     new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.ITALIC, BaseColor.GRAY));
             fin.setAlignment(Element.ALIGN_CENTER);
             doc.add(fin);
@@ -947,207 +938,176 @@ public class PanelReportes extends PanelDegradado {
             JOptionPane.showMessageDialog(this, "Error reporte recursos: " + e.getMessage());
         }
     }
+
     // ======================================================
     // REPORTE GENERAL DE ALQUILERES
     // ======================================================
     private void generarReporteAlquileres() {
         String ruta = crearRuta("reporte_alquileres_general.pdf");
-        
-        // Colores
+
         BaseColor colorPrimario = new BaseColor(33, 97, 140);
         BaseColor colorFondoGris = new BaseColor(242, 243, 244);
-        BaseColor colorAlerta = new BaseColor(192, 57, 43); // Rojo suave para moras/pendientes
+        BaseColor colorDeudor = new BaseColor(192, 57, 43); // Rojo para impagos
+        BaseColor colorTextoNormal = BaseColor.DARK_GRAY;
 
         try {
-            // 1. HORIZONTAL (Landscape) para que quepan las columnas
             Document doc = new Document(PageSize.A4.rotate(), 20, 20, 30, 30);
             PdfWriter.getInstance(doc, new FileOutputStream(ruta));
             doc.open();
 
-            // Encabezado
-            agregarEncabezadoProfesional(doc, "REPORTE GENERAL DE MOVIMIENTOS Y ALQUILERES", colorPrimario);
+            agregarEncabezadoProfesional(doc, "REPORTE GENERAL (PAGADOS Y PENDIENTES)", colorPrimario);
 
-            // 2. TABLA (8 Columnas optimizadas)
-            PdfPTable tabla = new PdfPTable(8);
+            // TABLA
+            PdfPTable tabla = new PdfPTable(11); // Agregamos columna "Estado Pago"
             tabla.setWidthPercentage(100);
             tabla.setSpacingBefore(15f);
-            
-            // Anchos: Cliente ancho, ID estrecho, Precios medios
-            float[] anchos = {1f, 4f, 1.5f, 1.2f, 1f, 1.5f, 1.5f, 1.5f};
+
+            // Ajustamos anchos
+            float[] anchos = {1.2f, 3.5f, 1.5f, 1.2f, 0.8f, 1.5f, 1.5f, 1.5f, 1.2f, 1.2f, 1.8f};
             tabla.setWidths(anchos);
 
-            // Cabeceras
-            String[] headers = {"ID", "Cliente", "Fecha", "Hora", "Dur.", "Estado", "Total", "Mora"};
+            String[] headers = {"ID", "Cliente", "Fecha", "Hora", "H", "Est. Alq", "Subtotal", "Dscto.", "Mora", "Est. Pago", "Total"};
             for (String h : headers) {
                 tabla.addCell(crearCeldaHeader(h, colorPrimario));
             }
 
-            // 3. CONSULTA SQL CON JOIN (Para ver nombres, no códigos)
+            // --- SQL CON LEFT JOIN PARA VER ESTADO DE PAGO ---
             String sql = """
-                SELECT a.idAlquiler, 
-                       t.nombre + ' ' + t.apellidos AS cliente,
-                       a.fechaInicio, 
-                       a.horaInicio, 
-                       a.Duracion, 
-                       a.estado, 
-                       a.total, 
-                       a.mora
-                FROM Alquiler a
-                JOIN Turista t ON a.idTurista = t.idTurista
-                ORDER BY a.fechaInicio DESC, a.horaInicio DESC
-            """;
+            SELECT a.idAlquiler, 
+                   t.nombre + ' ' + t.apellidos AS cliente,
+                   a.fechaInicio, a.horaInicio, a.Duracion, a.estado AS estadoAlquiler,
+                   ISNULL(a.subtotal, a.total - a.mora) as subtotal,
+                   ISNULL(a.montoDescuento, 0) as descuento,
+                   a.mora, a.total,
+                   p.estado AS estadoPago -- Traemos si está pagado o no
+            FROM Alquiler a
+            JOIN Turista t ON a.idTurista = t.idTurista
+            LEFT JOIN Pago p ON a.idAlquiler = p.idAlquiler AND p.estado = 'Completado'
+            ORDER BY a.fechaInicio DESC, a.horaInicio DESC
+        """;
 
-            // Variables para sumar totales al final
-            double sumaTotal = 0;
-            double sumaMora = 0;
+            double sumaSubtotal = 0, sumaDescuento = 0, sumaMora = 0, sumaTotal = 0;
 
             try (Statement st = conexion.createStatement(); ResultSet rs = st.executeQuery(sql)) {
                 boolean filaImpar = true;
-                
-                // Formateadores
                 java.text.SimpleDateFormat sdfHora = new java.text.SimpleDateFormat("HH:mm");
                 java.text.SimpleDateFormat sdfFecha = new java.text.SimpleDateFormat("dd/MM/yyyy");
 
                 while (rs.next()) {
                     BaseColor colorFondo = filaImpar ? BaseColor.WHITE : colorFondoGris;
-                    
-                    // ID
-                    tabla.addCell(crearCeldaData(rs.getString("idAlquiler"), colorFondo, Element.ALIGN_CENTER));
-                    
-                    // Cliente (Nombre real)
-                    tabla.addCell(crearCeldaData(rs.getString("cliente"), colorFondo, Element.ALIGN_LEFT));
-                    
-                    // Fecha
+
+                    // 1. DETERMINAR SI ESTÁ PAGADO
+                    String estPago = rs.getString("estadoPago");
+                    boolean isPagado = (estPago != null && estPago.equalsIgnoreCase("Completado"));
+
+                    // 2. DEFINIR COLOR DEL TEXTO (Rojo si debe, Normal si pagó)
+                    BaseColor colorTextoFila = isPagado ? colorTextoNormal : colorDeudor;
+                    String textoEstadoPago = isPagado ? "PAGADO" : "DEBE";
+
+                    // --- IMPRIMIR CELDAS CON EL COLOR ELEGIDO ---
+                    tabla.addCell(crearCeldaDataColor(rs.getString("idAlquiler"), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(rs.getString("cliente"), colorFondo, Element.ALIGN_LEFT, colorTextoFila));
+
                     java.sql.Date fecha = rs.getDate("fechaInicio");
-                    tabla.addCell(crearCeldaData(fecha != null ? sdfFecha.format(fecha) : "-", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(fecha != null ? sdfFecha.format(fecha) : "-", colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
-                    // Hora
                     java.sql.Time hora = rs.getTime("horaInicio");
-                    tabla.addCell(crearCeldaData(hora != null ? sdfHora.format(hora) : "-", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(hora != null ? sdfHora.format(hora) : "-", colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
-                    // Duración
-                    tabla.addCell(crearCeldaData(rs.getInt("Duracion") + " h", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(String.valueOf(rs.getInt("Duracion")), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(rs.getString("estadoAlquiler"), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
-                    // Estado (Si está PENDIENTE, lo pintamos rojo para alertar)
-                    String estado = rs.getString("estado");
-                    if ("PENDIENTE".equalsIgnoreCase(estado)) {
-                       // 1. Creamos la fuente ROJA manualmente
-                        com.itextpdf.text.Font fontRojo = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.BOLD, colorAlerta);
-                        
-                        // 2. Creamos la celda directamente con esa fuente
-                        PdfPCell cellEstado = new PdfPCell(new Paragraph(estado, fontRojo));
-                        
-                        // 3. Aplicamos los mismos estilos que el helper 'crearCeldaData'
-                        cellEstado.setBackgroundColor(colorFondo);
-                        cellEstado.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        cellEstado.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                        cellEstado.setPadding(4f);
-                        
-                        tabla.addCell(cellEstado);
-                    } else {
-                        tabla.addCell(crearCeldaData(estado, colorFondo, Element.ALIGN_CENTER));
+                    // Datos Financieros
+                    double sub = rs.getDouble("subtotal");
+                    double desc = rs.getDouble("descuento");
+                    double mora = rs.getDouble("mora");
+                    double tot = rs.getDouble("total");
+
+                    // 3. LÓGICA DE ACUMULACIÓN: SOLO SUMAMOS SI ESTÁ PAGADO
+                    if (isPagado) {
+                        sumaSubtotal += sub;
+                        sumaDescuento += desc;
+                        sumaMora += mora;
+                        sumaTotal += tot;
                     }
 
-                    // Total
-                    double total = rs.getDouble("total");
-                    sumaTotal += total;
-                    tabla.addCell(crearCeldaData("S/ " + String.format("%.2f", total), colorFondo, Element.ALIGN_RIGHT));
+                    tabla.addCell(crearCeldaDataColor(String.format("%.2f", sub), colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(desc > 0 ? String.format("%.2f", desc) : "-", colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(mora > 0 ? String.format("%.2f", mora) : "-", colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
 
-                    // Mora
-                    double mora = rs.getDouble("mora");
-                    sumaMora += mora;
-                    String txtMora = mora > 0 ? "S/ " + String.format("%.2f", mora) : "-";
-                    tabla.addCell(crearCeldaData(txtMora, colorFondo, Element.ALIGN_RIGHT));
+                    // Columna Estado Pago Visual
+                    tabla.addCell(crearCeldaDataColor(textoEstadoPago, colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+
+                    // Total Fila
+                    PdfPCell cTotal = crearCeldaDataColor(String.format("%.2f", tot), colorFondo, Element.ALIGN_RIGHT, colorTextoFila);
+                    // Si quieres negrita en el total de fila:
+                    cTotal.setPhrase(new Phrase(String.format("%.2f", tot), new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD, colorTextoFila)));
+                    tabla.addCell(cTotal);
 
                     filaImpar = !filaImpar;
                 }
             }
-
             doc.add(tabla);
 
-            // 4. CUADRO DE RESUMEN FINANCIERO (Totales)
-            // ... (Después de agregar la tabla principal y el doc.add(tabla)) ...
-// 4. CUADRO DE RESUMEN FINANCIERO (Totales)
+            // --- RESUMEN (SOLO MUESTRA DINERO RECAUDADO REAL) ---
             doc.add(new Paragraph("\n"));
-            
-            PdfPTable tablaResumen = new PdfPTable(3);
-            tablaResumen.setWidthPercentage(40); // Ajustado al 40% para que se vea compacto a la derecha
+
+            // Nota explicativa
+            Paragraph nota = new Paragraph("* Los montos en ROJO indican deudas pendientes y NO se incluyen en el total recaudado.",
+                    new Font(Font.FontFamily.HELVETICA, 8, Font.ITALIC, colorDeudor));
+            nota.setAlignment(Element.ALIGN_RIGHT);
+            doc.add(nota);
+            doc.add(new Paragraph("\n"));
+
+            PdfPTable tablaResumen = new PdfPTable(2);
+            tablaResumen.setWidthPercentage(40);
             tablaResumen.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            
-            // --- CÁLCULOS GLOBALES ---
-            double totalRecaudado = sumaTotal; 
-            double totalBase = totalRecaudado / 1.18;
-            double totalIGV = totalRecaudado - totalBase;
 
-            // Fila 1: Ingreso por Alquiler
-            // CORRECCIÓN: Usamos BaseColor.GRAY para que el texto BLANCO se lea
-            tablaResumen.addCell(crearCeldaHeader("INGRESOS ALQUILER", BaseColor.GRAY));
-            
-            PdfPCell c1 = crearCeldaData("S/ " + String.format("%.2f", sumaTotal - sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            c1.setColspan(2); 
-            tablaResumen.addCell(c1);
+            tablaResumen.addCell(crearCeldaHeader("SUBTOTAL (COBRADO)", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", sumaSubtotal), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 2: Ingreso por Mora
-            tablaResumen.addCell(crearCeldaHeader("INGRESOS MORA", BaseColor.GRAY));
-            
-            PdfPCell c2 = crearCeldaData("S/ " + String.format("%.2f", sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            c2.setColspan(2);
-            tablaResumen.addCell(c2);
+            tablaResumen.addCell(crearCeldaHeader("DESCUENTOS DADOS", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("- S/ " + String.format("%.2f", sumaDescuento), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 3: Valor Neto (Base Imponible)
-            // CORRECCIÓN: Fondo Gris Oscuro para distinguir el desglose de impuestos
+            tablaResumen.addCell(crearCeldaHeader("MORAS COBRADAS", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("+ S/ " + String.format("%.2f", sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT));
+
+            // IGV
+            double valorVenta = sumaTotal / 1.18;
+            double impuesto = sumaTotal - valorVenta;
+
             tablaResumen.addCell(crearCeldaHeader("VALOR VENTA (NETO)", BaseColor.DARK_GRAY));
-            
-            PdfPCell cNeto = crearCeldaData("S/ " + String.format("%.2f", totalBase), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            cNeto.setColspan(2);
-            tablaResumen.addCell(cNeto);
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", valorVenta), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 4: IGV
-            tablaResumen.addCell(crearCeldaHeader("IGV TOTAL (18%)", BaseColor.DARK_GRAY));
-            
-            PdfPCell cIgv = crearCeldaData("S/ " + String.format("%.2f", totalIGV), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            cIgv.setColspan(2);
-            tablaResumen.addCell(cIgv);
+            tablaResumen.addCell(crearCeldaHeader("IGV (18%)", BaseColor.DARK_GRAY));
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", impuesto), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 5: GRAN TOTAL (Azul Corporativo)
-            // Creamos manualmente la celda para asegurar la fuente Negrita y Grande
+            // TOTAL CAJA REAL
             Font fontTotal = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
-            
-            PdfPCell celdaTotalLabel = new PdfPCell(new Paragraph("TOTAL RECAUDADO", fontTotal));
-            celdaTotalLabel.setBackgroundColor(colorPrimario);
-            celdaTotalLabel.setHorizontalAlignment(Element.ALIGN_LEFT); // Alineado a la izquierda del bloque
-            celdaTotalLabel.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            celdaTotalLabel.setPadding(5f);
-            tablaResumen.addCell(celdaTotalLabel);
+            PdfPCell cTotalL = new PdfPCell(new Paragraph("CAJA REAL (RECAUDADO)", fontTotal));
+            cTotalL.setBackgroundColor(colorPrimario);
+            tablaResumen.addCell(cTotalL);
 
-            PdfPCell celdaTotalValue = new PdfPCell(new Paragraph("S/ " + String.format("%.2f", totalRecaudado), fontTotal));
-            celdaTotalValue.setBackgroundColor(colorPrimario);
-            celdaTotalValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            celdaTotalValue.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            celdaTotalValue.setPadding(5f);
-            celdaTotalValue.setColspan(2);
-            tablaResumen.addCell(celdaTotalValue);
-            
+            PdfPCell cTotalV = new PdfPCell(new Paragraph("S/ " + String.format("%.2f", sumaTotal), fontTotal));
+            cTotalV.setBackgroundColor(colorPrimario);
+            cTotalV.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            tablaResumen.addCell(cTotalV);
+
             doc.add(tablaResumen);
-
-            // Pie
-            doc.add(new Paragraph("\n"));
-            Paragraph fin = new Paragraph("Reporte generado el " + new java.util.Date(), 
-                    new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.ITALIC, BaseColor.GRAY));
-            fin.setAlignment(Element.ALIGN_CENTER);
-            doc.add(fin);
-
             doc.close();
             abrirPDF(ruta);
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error reporte alquileres: " + e.getMessage());
             e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
     }
+
     // ======================================================
     // REPORTE DE ALQUILERES POR FECHA
-   private void generarReporteAlquileresPorFecha() {
+    private void generarReporteAlquileresPorFecha() {
+
+        // 1. Validaciones de fecha
         java.util.Date fechaIni = jDateInicio.getDate();
         java.util.Date fechaFin = jDateFin.getDate();
 
@@ -1159,60 +1119,54 @@ public class PanelReportes extends PanelDegradado {
         java.sql.Date f1 = new java.sql.Date(fechaIni.getTime());
         java.sql.Date f2 = new java.sql.Date(fechaFin.getTime());
 
-        // Formato para el título del PDF
         java.text.SimpleDateFormat sdfTitulo = new java.text.SimpleDateFormat("dd/MM/yyyy");
         String rangoFechas = "DEL " + sdfTitulo.format(fechaIni) + " AL " + sdfTitulo.format(fechaFin);
-
         String ruta = crearRuta("reporte_alquileres_fechas.pdf");
 
         // Colores
         BaseColor colorPrimario = new BaseColor(33, 97, 140);
         BaseColor colorFondoGris = new BaseColor(242, 243, 244);
-        BaseColor colorAlerta = new BaseColor(192, 57, 43);
+        BaseColor colorDeudor = new BaseColor(192, 57, 43); // Rojo para impagos
+        BaseColor colorTextoNormal = BaseColor.DARK_GRAY;
 
         try {
-            // 1. DOCUMENTO HORIZONTAL
             Document doc = new Document(PageSize.A4.rotate(), 20, 20, 30, 30);
             PdfWriter.getInstance(doc, new FileOutputStream(ruta));
             doc.open();
 
-            // Encabezado con el Rango de Fechas
             agregarEncabezadoProfesional(doc, "REPORTE DE ALQUILERES (" + rangoFechas + ")", colorPrimario);
 
-            // 2. TABLA (8 Columnas)
-            PdfPTable tabla = new PdfPTable(8);
+            // 2. TABLA (11 Columnas)
+            PdfPTable tabla = new PdfPTable(11);
             tabla.setWidthPercentage(100);
             tabla.setSpacingBefore(15f);
 
-            // Anchos
-            float[] anchos = {1f, 4f, 1.5f, 1.2f, 1f, 1.5f, 1.5f, 1.5f};
+            // Ajustamos anchos
+            float[] anchos = {1.2f, 3.5f, 1.5f, 1.2f, 0.8f, 1.5f, 1.5f, 1.5f, 1.2f, 1.2f, 1.8f};
             tabla.setWidths(anchos);
 
-            // Cabeceras
-            String[] headers = {"ID", "Cliente", "Fecha", "Hora", "Dur.", "Estado", "Total", "Mora"};
+            String[] headers = {"ID", "Cliente", "Fecha", "Hora", "H", "Est. Alq", "Subtotal", "Dscto.", "Mora", "Est. Pago", "Total"};
             for (String h : headers) {
                 tabla.addCell(crearCeldaHeader(h, colorPrimario));
             }
 
-            // 3. CONSULTA SQL FILTRADA POR FECHA
+            // 3. SQL CON LEFT JOIN PAGO
             String sql = """
-                SELECT a.idAlquiler, 
-                       t.nombre + ' ' + t.apellidos AS cliente,
-                       a.fechaInicio, 
-                       a.horaInicio, 
-                       a.Duracion, 
-                       a.estado, 
-                       a.total, 
-                       a.mora
-                FROM Alquiler a
-                JOIN Turista t ON a.idTurista = t.idTurista
-                WHERE a.fechaInicio BETWEEN ? AND ?
-                ORDER BY a.fechaInicio ASC, a.horaInicio ASC
-            """;
+            SELECT a.idAlquiler, 
+                   t.nombre + ' ' + t.apellidos AS cliente,
+                   a.fechaInicio, a.horaInicio, a.Duracion, a.estado AS estadoAlquiler,
+                   ISNULL(a.subtotal, a.total - a.mora) as subtotal,
+                   ISNULL(a.montoDescuento, 0) as descuento,
+                   a.mora, a.total,
+                   p.estado AS estadoPago
+            FROM Alquiler a
+            JOIN Turista t ON a.idTurista = t.idTurista
+            LEFT JOIN Pago p ON a.idAlquiler = p.idAlquiler AND p.estado = 'Completado'
+            WHERE a.fechaInicio BETWEEN ? AND ?
+            ORDER BY a.fechaInicio ASC, a.horaInicio ASC
+        """;
 
-            // Acumuladores para el resumen final
-            double sumaTotal = 0;
-            double sumaMora = 0;
+            double sumaSubtotal = 0, sumaDescuento = 0, sumaMora = 0, sumaTotal = 0;
 
             try (PreparedStatement ps = conexion.prepareStatement(sql)) {
                 ps.setDate(1, f1);
@@ -1226,116 +1180,104 @@ public class PanelReportes extends PanelDegradado {
                 while (rs.next()) {
                     BaseColor colorFondo = filaImpar ? BaseColor.WHITE : colorFondoGris;
 
-                    // Datos Básicos
-                    tabla.addCell(crearCeldaData(rs.getString("idAlquiler"), colorFondo, Element.ALIGN_CENTER));
-                    tabla.addCell(crearCeldaData(rs.getString("cliente"), colorFondo, Element.ALIGN_LEFT));
-                    
+                    // A. Verificar Pago
+                    String estPago = rs.getString("estadoPago");
+                    boolean isPagado = (estPago != null && estPago.equalsIgnoreCase("Completado"));
+
+                    // B. Definir Color Texto (Rojo si debe)
+                    BaseColor colorTextoFila = isPagado ? colorTextoNormal : colorDeudor;
+                    String textoEstadoPago = isPagado ? "PAGADO" : "DEBE";
+
+                    // C. Llenar Celdas con Color
+                    tabla.addCell(crearCeldaDataColor(rs.getString("idAlquiler"), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(rs.getString("cliente"), colorFondo, Element.ALIGN_LEFT, colorTextoFila));
+
                     java.sql.Date fecha = rs.getDate("fechaInicio");
-                    tabla.addCell(crearCeldaData(fecha != null ? sdfFecha.format(fecha) : "-", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(fecha != null ? sdfFecha.format(fecha) : "-", colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
                     java.sql.Time hora = rs.getTime("horaInicio");
-                    tabla.addCell(crearCeldaData(hora != null ? sdfHora.format(hora) : "-", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(hora != null ? sdfHora.format(hora) : "-", colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
-                    tabla.addCell(crearCeldaData(rs.getInt("Duracion") + " h", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(String.valueOf(rs.getInt("Duracion")), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(rs.getString("estadoAlquiler"), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
-                    // Estado con Alerta Roja (Versión corregida sin getElement)
-                    String estado = rs.getString("estado");
-                    if ("PENDIENTE".equalsIgnoreCase(estado)) {
-                        com.itextpdf.text.Font fontRojo = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.BOLD, colorAlerta);
-                        PdfPCell cellEstado = new PdfPCell(new Paragraph(estado, fontRojo));
-                        cellEstado.setBackgroundColor(colorFondo);
-                        cellEstado.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        cellEstado.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                        cellEstado.setPadding(4f);
-                        tabla.addCell(cellEstado);
-                    } else {
-                        tabla.addCell(crearCeldaData(estado, colorFondo, Element.ALIGN_CENTER));
+                    // Datos Financieros
+                    double sub = rs.getDouble("subtotal");
+                    double desc = rs.getDouble("descuento");
+                    double mora = rs.getDouble("mora");
+                    double tot = rs.getDouble("total");
+
+                    // D. ACUMULAR SOLO SI PAGÓ
+                    if (isPagado) {
+                        sumaSubtotal += sub;
+                        sumaDescuento += desc;
+                        sumaMora += mora;
+                        sumaTotal += tot;
                     }
 
-                    // Totales Financieros
-                    double total = rs.getDouble("total");
-                    sumaTotal += total;
-                    tabla.addCell(crearCeldaData("S/ " + String.format("%.2f", total), colorFondo, Element.ALIGN_RIGHT));
+                    tabla.addCell(crearCeldaDataColor(String.format("%.2f", sub), colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(desc > 0 ? String.format("%.2f", desc) : "-", colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(mora > 0 ? String.format("%.2f", mora) : "-", colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
 
-                    double mora = rs.getDouble("mora");
-                    sumaMora += mora;
-                    String txtMora = mora > 0 ? "S/ " + String.format("%.2f", mora) : "-";
-                    tabla.addCell(crearCeldaData(txtMora, colorFondo, Element.ALIGN_RIGHT));
+                    tabla.addCell(crearCeldaDataColor(textoEstadoPago, colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+
+                    PdfPCell cTotal = crearCeldaDataColor(String.format("%.2f", tot), colorFondo, Element.ALIGN_RIGHT, colorTextoFila);
+                    cTotal.setPhrase(new Phrase(String.format("%.2f", tot), new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD, colorTextoFila)));
+                    tabla.addCell(cTotal);
 
                     filaImpar = !filaImpar;
                 }
             }
-
             doc.add(tabla);
 
-            // 4. RESUMEN FINANCIERO DEL PERIODO (Igual que el reporte general)
+            // 4. RESUMEN (CAJA REAL)
             doc.add(new Paragraph("\n"));
-            
-            PdfPTable tablaResumen = new PdfPTable(3);
-            tablaResumen.setWidthPercentage(40); 
+            Paragraph nota = new Paragraph("* Los montos en ROJO indican deudas y NO se incluyen en la caja real.",
+                    new Font(Font.FontFamily.HELVETICA, 8, Font.ITALIC, colorDeudor));
+            nota.setAlignment(Element.ALIGN_RIGHT);
+            doc.add(nota);
+            doc.add(new Paragraph("\n"));
+
+            PdfPTable tablaResumen = new PdfPTable(2);
+            tablaResumen.setWidthPercentage(40);
             tablaResumen.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            
-            // Cálculos
-            double totalRecaudado = sumaTotal; 
-            double totalBase = totalRecaudado / 1.18;
-            double totalIGV = totalRecaudado - totalBase;
 
-            // Fila 1: Alquiler
-            tablaResumen.addCell(crearCeldaHeader("ALQUILER (" + rangoFechas + ")", BaseColor.GRAY));
-            PdfPCell c1 = crearCeldaData("S/ " + String.format("%.2f", sumaTotal - sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            c1.setColspan(2); 
-            tablaResumen.addCell(c1);
+            tablaResumen.addCell(crearCeldaHeader("SUBTOTAL (COBRADO)", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", sumaSubtotal), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 2: Mora
-            tablaResumen.addCell(crearCeldaHeader("MORA ACUMULADA", BaseColor.GRAY));
-            PdfPCell c2 = crearCeldaData("S/ " + String.format("%.2f", sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            c2.setColspan(2);
-            tablaResumen.addCell(c2);
+            tablaResumen.addCell(crearCeldaHeader("DESCUENTOS", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("- S/ " + String.format("%.2f", sumaDescuento), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 3: Neto
+            tablaResumen.addCell(crearCeldaHeader("MORAS COBRADAS", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("+ S/ " + String.format("%.2f", sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT));
+
+            // IGV
+            double valorVenta = sumaTotal / 1.18;
+            double impuesto = sumaTotal - valorVenta;
+
             tablaResumen.addCell(crearCeldaHeader("VALOR VENTA (NETO)", BaseColor.DARK_GRAY));
-            PdfPCell cNeto = crearCeldaData("S/ " + String.format("%.2f", totalBase), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            cNeto.setColspan(2);
-            tablaResumen.addCell(cNeto);
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", valorVenta), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 4: IGV
             tablaResumen.addCell(crearCeldaHeader("IGV (18%)", BaseColor.DARK_GRAY));
-            PdfPCell cIgv = crearCeldaData("S/ " + String.format("%.2f", totalIGV), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            cIgv.setColspan(2);
-            tablaResumen.addCell(cIgv);
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", impuesto), BaseColor.WHITE, Element.ALIGN_RIGHT));
 
-            // Fila 5: TOTAL PERIODO
-            com.itextpdf.text.Font fontTotal = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 10, com.itextpdf.text.Font.BOLD, BaseColor.WHITE);
-            
-            PdfPCell celdaTotalLabel = new PdfPCell(new Paragraph("TOTAL PERIODO", fontTotal));
-            celdaTotalLabel.setBackgroundColor(colorPrimario);
-            celdaTotalLabel.setHorizontalAlignment(Element.ALIGN_LEFT);
-            celdaTotalLabel.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            celdaTotalLabel.setPadding(5f);
-            tablaResumen.addCell(celdaTotalLabel);
+            // TOTAL
+            Font fontTotal = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
+            PdfPCell cTotalL = new PdfPCell(new Paragraph("CAJA REAL (RECAUDADO)", fontTotal));
+            cTotalL.setBackgroundColor(colorPrimario);
+            tablaResumen.addCell(cTotalL);
 
-            PdfPCell celdaTotalValue = new PdfPCell(new Paragraph("S/ " + String.format("%.2f", totalRecaudado), fontTotal));
-            celdaTotalValue.setBackgroundColor(colorPrimario);
-            celdaTotalValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            celdaTotalValue.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            celdaTotalValue.setPadding(5f);
-            celdaTotalValue.setColspan(2);
-            tablaResumen.addCell(celdaTotalValue);
-            
+            PdfPCell cTotalV = new PdfPCell(new Paragraph("S/ " + String.format("%.2f", sumaTotal), fontTotal));
+            cTotalV.setBackgroundColor(colorPrimario);
+            cTotalV.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            tablaResumen.addCell(cTotalV);
+
             doc.add(tablaResumen);
-
-            // Pie
-            doc.add(new Paragraph("\n"));
-            Paragraph fin = new Paragraph("Reporte generado el " + new java.util.Date(), 
-                    new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.ITALIC, BaseColor.GRAY));
-            fin.setAlignment(Element.ALIGN_CENTER);
-            doc.add(fin);
-
             doc.close();
             abrirPDF(ruta);
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error reporte por fechas: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error reporte fechas: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -1343,77 +1285,68 @@ public class PanelReportes extends PanelDegradado {
     // ======================================================
     // REPORTE DE ALQUILERES POR USUARIO
     // ======================================================
-  
-   private void generarReporteAlquileresPorUsuario() {
+    private void generarReporteAlquileresPorUsuario() {
         String idUsuario = JOptionPane.showInputDialog(this, "Ingrese el ID del usuario (Ej: U001):");
         if (idUsuario == null || idUsuario.trim().isEmpty()) {
-            return; // Cancelado
+            return;
+        }
+        idUsuario = idUsuario.trim().toUpperCase();
+
+        String nombreUsuario = "Usuario " + idUsuario;
+        try (PreparedStatement ps = conexion.prepareStatement("SELECT nameUsuario FROM ActorUsuario WHERE idUsuario = ?")) {
+            ps.setString(1, idUsuario);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                nombreUsuario = rs.getString("nameUsuario");
+            } else {
+                JOptionPane.showMessageDialog(this, "Usuario no encontrado.");
+                return;
+            }
+        } catch (SQLException e) {
         }
 
-        idUsuario = idUsuario.trim().toUpperCase();
-        String ruta = crearRuta("reporte_ventas_usuario_" + idUsuario + ".pdf");
+        String ruta = crearRuta("reporte_ventas_" + idUsuario + ".pdf");
 
-        // Colores Corporativos
+        // Colores
         BaseColor colorPrimario = new BaseColor(33, 97, 140);
         BaseColor colorFondoGris = new BaseColor(242, 243, 244);
-        BaseColor colorAlerta = new BaseColor(192, 57, 43);
+        BaseColor colorDeudor = new BaseColor(192, 57, 43);
+        BaseColor colorTextoNormal = BaseColor.DARK_GRAY;
 
         try {
-            // 1. OBTENER NOMBRE DEL USUARIO (Para el título)
-            String nombreUsuario = "Desconocido";
-            String sqlUser = "SELECT nameUsuario FROM ActorUsuario WHERE idUsuario = ?";
-            try (PreparedStatement ps = conexion.prepareStatement(sqlUser)) {
-                ps.setString(1, idUsuario);
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    nombreUsuario = rs.getString("nameUsuario");
-                } else {
-                    JOptionPane.showMessageDialog(this, "Usuario no encontrado.");
-                    return;
-                }
-            }
-
-            // 2. CONFIGURACIÓN DEL PDF (Horizontal)
             Document doc = new Document(PageSize.A4.rotate(), 20, 20, 30, 30);
             PdfWriter.getInstance(doc, new FileOutputStream(ruta));
             doc.open();
 
-            // Encabezado Personalizado
-            agregarEncabezadoProfesional(doc, "REPORTE DE VENTAS POR USUARIO: " + nombreUsuario.toUpperCase(), colorPrimario);
+            agregarEncabezadoProfesional(doc, "RENDIMIENTO: " + nombreUsuario.toUpperCase(), colorPrimario);
 
-            // 3. TABLA (8 Columnas)
-            PdfPTable tabla = new PdfPTable(8);
+            PdfPTable tabla = new PdfPTable(11);
             tabla.setWidthPercentage(100);
             tabla.setSpacingBefore(15f);
-
-            // Anchos
-            float[] anchos = {1f, 4f, 1.5f, 1.2f, 1f, 1.5f, 1.5f, 1.5f};
+            float[] anchos = {1.2f, 3.5f, 1.5f, 1.2f, 0.8f, 1.5f, 1.5f, 1.5f, 1.2f, 1.2f, 1.8f};
             tabla.setWidths(anchos);
 
-            // Cabeceras
-            String[] headers = {"ID", "Cliente Atendido", "Fecha", "Hora", "Dur.", "Estado", "Total", "Mora"};
+            String[] headers = {"ID", "Cliente", "Fecha", "Hora", "H", "Est. Alq", "Subtotal", "Dscto.", "Mora", "Est. Pago", "Total"};
             for (String h : headers) {
                 tabla.addCell(crearCeldaHeader(h, colorPrimario));
             }
 
-            // 4. CONSULTA DE VENTAS DEL USUARIO (Con JOIN para nombre de cliente)
             String sql = """
-                SELECT a.idAlquiler, 
-                       t.nombre + ' ' + t.apellidos AS cliente,
-                       a.fechaInicio, 
-                       a.horaInicio, 
-                       a.Duracion, 
-                       a.estado, 
-                       a.total, 
-                       a.mora
-                FROM Alquiler a
-                JOIN Turista t ON a.idTurista = t.idTurista
-                WHERE a.idUsuario = ?
-                ORDER BY a.fechaInicio DESC, a.horaInicio DESC
-            """;
+            SELECT a.idAlquiler, 
+                   t.nombre + ' ' + t.apellidos AS cliente,
+                   a.fechaInicio, a.horaInicio, a.Duracion, a.estado AS estadoAlquiler,
+                   ISNULL(a.subtotal, a.total - a.mora) as subtotal,
+                   ISNULL(a.montoDescuento, 0) as descuento,
+                   a.mora, a.total,
+                   p.estado AS estadoPago
+            FROM Alquiler a
+            JOIN Turista t ON a.idTurista = t.idTurista
+            LEFT JOIN Pago p ON a.idAlquiler = p.idAlquiler AND p.estado = 'Completado'
+            WHERE a.idUsuario = ?
+            ORDER BY a.fechaInicio DESC, a.horaInicio DESC
+        """;
 
-            double sumaTotal = 0;
-            double sumaMora = 0;
+            double sumaSubtotal = 0, sumaDescuento = 0, sumaMora = 0, sumaTotal = 0;
 
             try (PreparedStatement ps = conexion.prepareStatement(sql)) {
                 ps.setString(1, idUsuario);
@@ -1426,94 +1359,93 @@ public class PanelReportes extends PanelDegradado {
                 while (rs.next()) {
                     BaseColor colorFondo = filaImpar ? BaseColor.WHITE : colorFondoGris;
 
-                    // Datos
-                    tabla.addCell(crearCeldaData(rs.getString("idAlquiler"), colorFondo, Element.ALIGN_CENTER));
-                    tabla.addCell(crearCeldaData(rs.getString("cliente"), colorFondo, Element.ALIGN_LEFT)); // Cliente real
-                    
+                    String estPago = rs.getString("estadoPago");
+                    boolean isPagado = (estPago != null && estPago.equalsIgnoreCase("Completado"));
+                    BaseColor colorTextoFila = isPagado ? colorTextoNormal : colorDeudor;
+                    String textoEstadoPago = isPagado ? "PAGADO" : "DEBE";
+
+                    tabla.addCell(crearCeldaDataColor(rs.getString("idAlquiler"), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(rs.getString("cliente"), colorFondo, Element.ALIGN_LEFT, colorTextoFila));
+
                     java.sql.Date fecha = rs.getDate("fechaInicio");
-                    tabla.addCell(crearCeldaData(fecha != null ? sdfFecha.format(fecha) : "-", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(fecha != null ? sdfFecha.format(fecha) : "-", colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
                     java.sql.Time hora = rs.getTime("horaInicio");
-                    tabla.addCell(crearCeldaData(hora != null ? sdfHora.format(hora) : "-", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(hora != null ? sdfHora.format(hora) : "-", colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
-                    tabla.addCell(crearCeldaData(rs.getInt("Duracion") + " h", colorFondo, Element.ALIGN_CENTER));
+                    tabla.addCell(crearCeldaDataColor(String.valueOf(rs.getInt("Duracion")), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(rs.getString("estadoAlquiler"), colorFondo, Element.ALIGN_CENTER, colorTextoFila));
 
-                    // Estado (Con alerta roja segura si es pendiente)
-                    String estado = rs.getString("estado");
-                    if ("PENDIENTE".equalsIgnoreCase(estado)) {
-                        com.itextpdf.text.Font fontRojo = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.BOLD, colorAlerta);
-                        PdfPCell cellEstado = new PdfPCell(new Paragraph(estado, fontRojo));
-                        cellEstado.setBackgroundColor(colorFondo);
-                        cellEstado.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        cellEstado.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                        cellEstado.setPadding(4f);
-                        tabla.addCell(cellEstado);
-                    } else {
-                        tabla.addCell(crearCeldaData(estado, colorFondo, Element.ALIGN_CENTER));
+                    double sub = rs.getDouble("subtotal");
+                    double desc = rs.getDouble("descuento");
+                    double mora = rs.getDouble("mora");
+                    double tot = rs.getDouble("total");
+
+                    if (isPagado) {
+                        sumaSubtotal += sub;
+                        sumaDescuento += desc;
+                        sumaMora += mora;
+                        sumaTotal += tot;
                     }
 
-                    // Dinero
-                    double total = rs.getDouble("total");
-                    sumaTotal += total;
-                    tabla.addCell(crearCeldaData("S/ " + String.format("%.2f", total), colorFondo, Element.ALIGN_RIGHT));
+                    tabla.addCell(crearCeldaDataColor(String.format("%.2f", sub), colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(desc > 0 ? String.format("%.2f", desc) : "-", colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
+                    tabla.addCell(crearCeldaDataColor(mora > 0 ? String.format("%.2f", mora) : "-", colorFondo, Element.ALIGN_RIGHT, colorTextoFila));
 
-                    double mora = rs.getDouble("mora");
-                    sumaMora += mora;
-                    String txtMora = mora > 0 ? "S/ " + String.format("%.2f", mora) : "-";
-                    tabla.addCell(crearCeldaData(txtMora, colorFondo, Element.ALIGN_RIGHT));
+                    tabla.addCell(crearCeldaDataColor(textoEstadoPago, colorFondo, Element.ALIGN_CENTER, colorTextoFila));
+
+                    PdfPCell cTotal = crearCeldaDataColor(String.format("%.2f", tot), colorFondo, Element.ALIGN_RIGHT, colorTextoFila);
+                    cTotal.setPhrase(new Phrase(String.format("%.2f", tot), new Font(Font.FontFamily.HELVETICA, 8, Font.BOLD, colorTextoFila)));
+                    tabla.addCell(cTotal);
 
                     filaImpar = !filaImpar;
                 }
             }
-
             doc.add(tabla);
 
-            // 5. RESUMEN DE RENDIMIENTO (Totales)
+            // RESUMEN
             doc.add(new Paragraph("\n"));
-            
-            PdfPTable tablaResumen = new PdfPTable(3);
+            Paragraph nota = new Paragraph("* Los montos en ROJO indican deudas y NO se incluyen en la caja real.",
+                    new Font(Font.FontFamily.HELVETICA, 8, Font.ITALIC, colorDeudor));
+            nota.setAlignment(Element.ALIGN_RIGHT);
+            doc.add(nota);
+            doc.add(new Paragraph("\n"));
+
+            PdfPTable tablaResumen = new PdfPTable(2);
             tablaResumen.setWidthPercentage(40);
             tablaResumen.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            
-            // Fila 1: Ventas Brutas
-            tablaResumen.addCell(crearCeldaHeader("VENTAS ALQUILER", BaseColor.GRAY));
-            PdfPCell c1 = crearCeldaData("S/ " + String.format("%.2f", sumaTotal - sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            c1.setColspan(2);
-            tablaResumen.addCell(c1);
 
-            // Fila 2: Moras Cobradas
+            tablaResumen.addCell(crearCeldaHeader("SUBTOTAL (COBRADO)", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", sumaSubtotal), BaseColor.WHITE, Element.ALIGN_RIGHT));
+
+            tablaResumen.addCell(crearCeldaHeader("DESCUENTOS", BaseColor.GRAY));
+            tablaResumen.addCell(crearCeldaData("- S/ " + String.format("%.2f", sumaDescuento), BaseColor.WHITE, Element.ALIGN_RIGHT));
+
             tablaResumen.addCell(crearCeldaHeader("MORAS COBRADAS", BaseColor.GRAY));
-            PdfPCell c2 = crearCeldaData("S/ " + String.format("%.2f", sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT);
-            c2.setColspan(2);
-            tablaResumen.addCell(c2);
-            
-            // Fila 3: TOTAL GENERADO POR EL USUARIO
-            com.itextpdf.text.Font fontTotal = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 10, com.itextpdf.text.Font.BOLD, BaseColor.WHITE);
-            
-            PdfPCell cTotalLabel = new PdfPCell(new Paragraph("TOTAL GENERADO", fontTotal));
-            cTotalLabel.setBackgroundColor(colorPrimario);
-            cTotalLabel.setHorizontalAlignment(Element.ALIGN_LEFT);
-            cTotalLabel.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            cTotalLabel.setPadding(5f);
-            tablaResumen.addCell(cTotalLabel);
-            
-            PdfPCell cTotalValue = new PdfPCell(new Paragraph("S/ " + String.format("%.2f", sumaTotal), fontTotal));
-            cTotalValue.setBackgroundColor(colorPrimario);
-            cTotalValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            cTotalValue.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            cTotalValue.setPadding(5f);
-            cTotalValue.setColspan(2);
-            tablaResumen.addCell(cTotalValue);
-            
+            tablaResumen.addCell(crearCeldaData("+ S/ " + String.format("%.2f", sumaMora), BaseColor.WHITE, Element.ALIGN_RIGHT));
+
+            // IGV
+            double valorVenta = sumaTotal / 1.18;
+            double impuesto = sumaTotal - valorVenta;
+
+            tablaResumen.addCell(crearCeldaHeader("VALOR VENTA (NETO)", BaseColor.DARK_GRAY));
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", valorVenta), BaseColor.WHITE, Element.ALIGN_RIGHT));
+
+            tablaResumen.addCell(crearCeldaHeader("IGV (18%)", BaseColor.DARK_GRAY));
+            tablaResumen.addCell(crearCeldaData("S/ " + String.format("%.2f", impuesto), BaseColor.WHITE, Element.ALIGN_RIGHT));
+
+            // TOTAL
+            Font fontTotal = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
+            PdfPCell cTotalL = new PdfPCell(new Paragraph("CAJA GENERADA (REAL)", fontTotal));
+            cTotalL.setBackgroundColor(colorPrimario);
+            tablaResumen.addCell(cTotalL);
+
+            PdfPCell cTotalV = new PdfPCell(new Paragraph("S/ " + String.format("%.2f", sumaTotal), fontTotal));
+            cTotalV.setBackgroundColor(colorPrimario);
+            cTotalV.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            tablaResumen.addCell(cTotalV);
+
             doc.add(tablaResumen);
-
-            // Pie
-            doc.add(new Paragraph("\n"));
-            Paragraph fin = new Paragraph("Reporte de rendimiento individual - " + new java.util.Date(), 
-                    new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.ITALIC, BaseColor.GRAY));
-            fin.setAlignment(Element.ALIGN_CENTER);
-            doc.add(fin);
-
             doc.close();
             abrirPDF(ruta);
 
@@ -1521,5 +1453,20 @@ public class PanelReportes extends PanelDegradado {
             JOptionPane.showMessageDialog(this, "Error reporte usuario: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    // Nuevo método helper para cambiar el color del TEXTO (no solo el fondo)
+
+    private PdfPCell crearCeldaDataColor(String texto, BaseColor colorFondo, int alineacion, BaseColor colorTexto) {
+        String textoFinal = (texto == null || texto.equalsIgnoreCase("null")) ? "-" : texto;
+
+        // Aquí usamos el colorTexto que recibimos
+        com.itextpdf.text.Font fontData = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 8, com.itextpdf.text.Font.NORMAL, colorTexto);
+
+        PdfPCell cell = new PdfPCell(new Paragraph(textoFinal, fontData));
+        cell.setBackgroundColor(colorFondo);
+        cell.setHorizontalAlignment(alineacion);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setPadding(4f);
+        return cell;
     }
 }

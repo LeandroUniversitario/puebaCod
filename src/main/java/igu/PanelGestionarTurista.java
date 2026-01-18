@@ -689,27 +689,33 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
         int duplicados = 0;
         int incompletos = 0;
 
-        // Limpiar y validar filas antes de batch
         ArrayList<Row> filasValidas = new ArrayList<>();
+
         for (Row row : bloque) {
+            // 1. Leemos los datos limpiando espacios
             String nombre = row.getCell(0) != null ? formatter.formatCellValue(row.getCell(0)).trim() : "";
             String apellidos = row.getCell(1) != null ? formatter.formatCellValue(row.getCell(1)).trim() : "";
             String dni = row.getCell(2) != null ? formatter.formatCellValue(row.getCell(2)).trim() : "";
             String nacionalidad = row.getCell(3) != null ? formatter.formatCellValue(row.getCell(3)).trim() : null;
             String contacto = row.getCell(4) != null ? formatter.formatCellValue(row.getCell(4)).trim() : null;
 
-            // Limpiar espacios y saltos
-            nombre = nombre.replaceAll("\\s+", " ").trim();
-            apellidos = apellidos.replaceAll("\\s+", " ").trim();
-            dni = dni.replaceAll("\\s+", "").trim();
+            // --- CORRECCIÓN AQUÍ: FILTRO DE FILAS FANTASMA ---
+            // Si nombre, apellido Y dni están vacíos, asumimos que es una fila en blanco al final del Excel.
+            // La saltamos sin sumar a 'incompletos'.
+            boolean filaTotalmenteVacia = nombre.isEmpty() && apellidos.isEmpty() && dni.isEmpty();
+            if (filaTotalmenteVacia) {
+                continue;
+            }
+            // -------------------------------------------------
 
-            // Validar obligatorios
+            // 2. Validación de obligatorios (Ahora sí cuenta como incompleto real)
+            // Ejemplo: Puso el nombre pero olvidó el DNI
             if (nombre.isEmpty() || apellidos.isEmpty() || dni.isEmpty()) {
                 incompletos++;
                 continue;
             }
 
-            // Verificar duplicado
+            // 3. Verificar duplicado en BD
             try (PreparedStatement psCheck = cs.getConnection().prepareStatement(
                     "SELECT COUNT(*) FROM Turista WHERE dni = ?")) {
                 psCheck.setString(1, dni);
@@ -721,7 +727,7 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
                 }
             }
 
-            // Almacenar fila válida en batch
+            // 4. Agregar al batch
             cs.setString(1, nombre);
             cs.setString(2, apellidos);
             cs.setString(3, dni);
@@ -731,17 +737,20 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
             filasValidas.add(row);
         }
 
-        // Ejecutar batch
+        // 5. Ejecutar inserción masiva
         try {
             cs.executeBatch();
             importados += filasValidas.size();
         } catch (SQLException e) {
-            // Si falla el batch, insertar fila por fila
+            // Fallback: Si falla el lote, intentamos uno por uno para salvar los buenos
+            System.out.println("Error en batch, intentando fila por fila: " + e.getMessage());
+
             for (Row row : filasValidas) {
                 try {
-                    String nombre = row.getCell(0) != null ? formatter.formatCellValue(row.getCell(0)).trim() : "";
-                    String apellidos = row.getCell(1) != null ? formatter.formatCellValue(row.getCell(1)).trim() : "";
-                    String dni = row.getCell(2) != null ? formatter.formatCellValue(row.getCell(2)).trim() : "";
+                    // Volvemos a leer (necesario porque el batch se limpia)
+                    String nombre = formatter.formatCellValue(row.getCell(0)).trim();
+                    String apellidos = formatter.formatCellValue(row.getCell(1)).trim();
+                    String dni = formatter.formatCellValue(row.getCell(2)).trim();
                     String nacionalidad = row.getCell(3) != null ? formatter.formatCellValue(row.getCell(3)).trim() : null;
                     String contacto = row.getCell(4) != null ? formatter.formatCellValue(row.getCell(4)).trim() : null;
 
@@ -753,7 +762,8 @@ public class PanelGestionarTurista extends javax.swing.JPanel {
                     cs.execute();
                     importados++;
                 } catch (SQLException exFila) {
-                    exFila.printStackTrace(); // log si falla fila individual
+                    System.err.println("Fila fallida individualmente: " + exFila.getMessage());
+                    // Opcional: Podrías contar esto como 'error' si quisieras otra variable
                 }
             }
         }

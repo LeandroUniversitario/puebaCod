@@ -80,15 +80,29 @@ public class PanelAlquiler extends javax.swing.JPanel {
         tblDetalles.getColumnModel().getColumn(index).setWidth(0);
     }
 
-
+    // ---------------------------------------------------------
+// VERSIÓN MEJORADA: USA LA COLUMNA NUMÉRICA 'porcentaje'
+// ---------------------------------------------------------
     private void aplicarPromocionAutomatica() {
         try {
-            int duracion = txtDuracion.getText().isEmpty() ? 0 : Integer.parseInt(txtDuracion.getText());
+            // 1. Validación rápida: Si no hay duración, no hacemos nada
+            String textoDuracion = txtDuracion.getText().trim();
+            if (textoDuracion.isEmpty()) {
+                return;
+            }
 
-            // 🔹 Obtener el total base (sin descuento previo)
+            int duracion = Integer.parseInt(textoDuracion);
+
+            // 2. Obtener el total base (Patrón State)
+            // Esto evita que el descuento se aplique sobre un precio ya descontado
             double totalBase;
             if (txtTotal.getClientProperty("totalBase") == null) {
-                totalBase = Double.parseDouble(txtTotal.getText().isEmpty() ? "0" : txtTotal.getText());
+                String textoTotal = txtTotal.getText().trim().replace(",", "."); // Parche para comas
+                if (textoTotal.isEmpty()) {
+                    textoTotal = "0";
+                }
+
+                totalBase = Double.parseDouble(textoTotal);
                 txtTotal.putClientProperty("totalBase", totalBase);
             } else {
                 totalBase = (double) txtTotal.getClientProperty("totalBase");
@@ -96,50 +110,61 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
             double totalConDescuento = totalBase;
             String promoAplicada = "Ninguna";
-            double mejorPorcentaje = 0;
+            double mejorPorcentaje = 0.0;
 
-            // 🔹 Consultar las promociones disponibles
-            String sql = "SELECT descripcion, condicionHoras FROM Promocion";
+            // 3. CONSULTA SEGURA: Traemos el número limpio desde la BD
+            String sql = "SELECT descripcion, condicionHoras, porcentaje FROM Promocion";
+
             try (PreparedStatement ps = conexion.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
 
                 while (rs.next()) {
-                    String descripcion = rs.getString("descripcion"); // ej. "20%"
+                    // AQUÍ ESTÁ LA MAGIA: Leemos el double directo, sin parsear texto
+                    double porcentajeBD = rs.getDouble("porcentaje");
                     int condicion = rs.getInt("condicionHoras");
+                    String descBD = rs.getString("descripcion");
 
+                    // Lógica: Si cumplo las horas Y este porcentaje es mejor que el anterior
                     if (duracion >= condicion) {
-                        double porcentaje = Double.parseDouble(descripcion.replace("%", ""));
-                        if (porcentaje > mejorPorcentaje) {
-                            mejorPorcentaje = porcentaje;
-                            promoAplicada = descripcion;
+                        if (porcentajeBD > mejorPorcentaje) {
+                            mejorPorcentaje = porcentajeBD;
+                            promoAplicada = descBD; // Guardamos el nombre para el ComboBox
                         }
                     }
                 }
             }
 
-            // 🔹 Aplicar el descuento una sola vez
+            // 4. Aplicar el descuento matemático
             if (mejorPorcentaje > 0) {
-                totalConDescuento = totalBase - (totalBase * mejorPorcentaje / 100);
-                JOptionPane.showMessageDialog(this,
-                        "✅ Se aplicó automáticamente la promoción de " + mejorPorcentaje + "% por alcanzar " + duracion + " horas.");
+                // Fórmula: Total - (Total * (Porcentaje / 100))
+                totalConDescuento = totalBase - (totalBase * mejorPorcentaje / 100.0);
+
+                // Mensaje opcional (puedes comentarlo si es molesto)
+                // JOptionPane.showMessageDialog(this,
+                //        "✅ Se aplicó automáticamente " + mejorPorcentaje + "% de descuento.");
+            } else {
+                promoAplicada = "Ninguna"; // Si bajó las horas, quitamos la promo
             }
 
-            // 🔹 Actualizar total y selección en ComboBox
-            txtTotal.setText(String.format("%.2f", totalConDescuento));
+            // 5. Actualizar interfaz
+            txtTotal.setText(String.format("%.2f", totalConDescuento).replace(",", "."));
 
+            // Seleccionar en el ComboBox visualmente
             boolean encontrada = false;
             for (int i = 0; i < jComboBoxPromos.getItemCount(); i++) {
-                if (jComboBoxPromos.getItemAt(i).contains(promoAplicada)) {
+                // Usamos contains para ser flexibles con el texto
+                if (jComboBoxPromos.getItemAt(i).toString().contains(promoAplicada)) {
                     jComboBoxPromos.setSelectedIndex(i);
                     encontrada = true;
                     break;
                 }
             }
             if (!encontrada) {
-                jComboBoxPromos.setSelectedIndex(0); // Ninguna
+                jComboBoxPromos.setSelectedIndex(0); // Index 0 suele ser "Ninguna"
             }
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al aplicar promoción: " + e.getMessage());
+        } catch (NumberFormatException e) {
+            System.out.println("Error numérico al calcular promo: " + e.getMessage());
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error de BD en promo: " + e.getMessage());
         }
     }
 
@@ -147,11 +172,12 @@ public class PanelAlquiler extends javax.swing.JPanel {
         jComboBoxPromos.removeAllItems();
         jComboBoxPromos.addItem("Ninguna");
 
-        String sql = "SELECT descripcion, condicionHoras FROM Promocion";
+        // Agregamos ORDER BY para que salgan ordenadas (3h, 5h, 10h...)
+        String sql = "SELECT descripcion FROM Promocion ORDER BY condicionHoras ASC";
+
         try (PreparedStatement ps = conexion.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                // Solo añadimos la descripción, como "10%", "20%", etc.
                 jComboBoxPromos.addItem(rs.getString("descripcion"));
             }
 
@@ -391,6 +417,11 @@ public class PanelAlquiler extends javax.swing.JPanel {
 
         jComboBoxPromos.setForeground(new java.awt.Color(0, 0, 0));
         jComboBoxPromos.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "null", "Item 2", "Item 3", "Item 4" }));
+        jComboBoxPromos.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jComboBoxPromosActionPerformed(evt);
+            }
+        });
 
         lblEstado.setForeground(new java.awt.Color(0, 0, 0));
         lblEstado.setText("Estado");
@@ -645,7 +676,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     .addComponent(lblSubtotal)
                     .addComponent(txtPrecioHora, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(lblPrecioHora))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 16, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnAgregarRe)
                     .addComponent(btnEliminarRe)
@@ -1165,7 +1196,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
             return;
         }
 
-        // 2. 🛡️ VALIDAR SELECCIONES OBLIGATORIAS (Evita el NullPointerException)
+        // 2. 🛡️ VALIDAR SELECCIONES OBLIGATORIAS
         if (jComboBoxEstado.getSelectedItem() == null) {
             JOptionPane.showMessageDialog(this, "⚠️ Debe seleccionar un ESTADO (ej. Reservado/Activo).", "Campo Requerido", JOptionPane.WARNING_MESSAGE);
             return;
@@ -1185,7 +1216,6 @@ public class PanelAlquiler extends javax.swing.JPanel {
             boolean hayPendientes = false;
 
             for (int i = 0; i < modelo.getRowCount(); i++) {
-                // Validamos null también aquí por seguridad
                 Object valorEstado = modelo.getValueAt(i, 7);
                 String est = (valorEstado != null) ? valorEstado.toString() : "En Uso";
 
@@ -1205,83 +1235,119 @@ public class PanelAlquiler extends javax.swing.JPanel {
             }
         }
 
-        try {
-            conexion.setAutoCommit(false);
+        // --------------------------------------------------------------------------------
+        // 🧠 4. CÁLCULO DE DESGLOSE FINANCIERO (AUDITORÍA)
+        // Recalculamos todo desde cero basándonos en la tabla para asegurar precisión.
+        // --------------------------------------------------------------------------------
+        double dbSubtotal = 0.0;
+        double dbMora = 0.0;
+        double dbDescuento = 0.0;
+        double dbTotalFinal = 0.0;
 
-            // 1️⃣ Obtener datos básicos
-            String idAlquiler = txtIdAlquiler.getText().trim();
-            String idTurista = txtIdTurista.getText().trim();
-            String idUsuario = txtIdVendedor.getText().trim();
+        DefaultTableModel modeloCalc = (DefaultTableModel) tblDetalles.getModel();
 
-            // La fecha ya la validamos arriba, es seguro obtenerla
-            java.sql.Date fechaInicio = new java.sql.Date(jDateChooserFecha.getDate().getTime());
-
-            String horaInicio = txtHora.getText().trim();
-            String horaFinal = txtHoraFin.getText().trim();
-
-            // Validación rápida de números para evitar errores si están vacíos
-            int duracion = 0;
-            try {
-                duracion = Integer.parseInt(txtDuracion.getText());
-            } catch (NumberFormatException e) {
-            }
-
-            double totalBase = 0;
-            try {
-                totalBase = Double.parseDouble(txtTotal.getText());
-            } catch (NumberFormatException e) {
-            }
-
-            // Calcular TOTAL FINAL (Base + Moras acumuladas)
-            double totalMoras = 0.0;
-
-            if (estado.equalsIgnoreCase("FINALIZADO")) {
-                DefaultTableModel modeloMora = (DefaultTableModel) tblDetalles.getModel();
-                for (int i = 0; i < modeloMora.getRowCount(); i++) {
-                    Object moraObj = modeloMora.getValueAt(i, 8); // Columna 8 = Mora
-                    if (moraObj != null) {
-                        try {
-                            totalMoras += Double.parseDouble(moraObj.toString());
-                        } catch (NumberFormatException e) {
-                        }
-                    }
+        // A) Sumar Subtotal y Mora de la tabla
+        for (int i = 0; i < modeloCalc.getRowCount(); i++) {
+            // Columna 6: Subtotal del recurso (Precio x Horas)
+            Object subVal = modeloCalc.getValueAt(i, 6);
+            if (subVal != null) {
+                try {
+                    dbSubtotal += Double.parseDouble(subVal.toString().replace(",", "."));
+                } catch (Exception e) {
                 }
             }
-            double totalGranTotal = totalBase + totalMoras;
 
-            // 2️⃣ Determinar idPromocion
-            String promoSeleccionada = jComboBoxPromos.getSelectedItem() != null
-                    ? jComboBoxPromos.getSelectedItem().toString() : "Ninguna";
-            String idPromocion = null;
+            // Columna 8: Mora generada (si existe)
+            Object moraVal = modeloCalc.getValueAt(i, 8);
+            if (moraVal != null) {
+                try {
+                    dbMora += Double.parseDouble(moraVal.toString().replace(",", "."));
+                } catch (Exception e) {
+                }
+            }
+        }
 
-            if (!promoSeleccionada.equalsIgnoreCase("Ninguna")) {
-                String sqlPromo = "SELECT idPromocion FROM Promocion WHERE descripcion LIKE ?";
+        // B) Calcular Descuento
+        // Obtenemos el porcentaje visualmente del ComboBox para saber cuál aplica
+        String textoPromo = jComboBoxPromos.getSelectedItem() != null
+                ? jComboBoxPromos.getSelectedItem().toString() : "Ninguna";
+
+        // Buscar ID Promocion y calcular porcentaje
+        String idPromocion = null;
+        double porcentaje = 0.0;
+
+        if (!textoPromo.equalsIgnoreCase("Ninguna")) {
+            // 1. Obtener ID de BD
+            try {
+                String sqlPromo = "SELECT idPromocion, porcentaje FROM Promocion WHERE descripcion = ?";
                 try (PreparedStatement psPromo = conexion.prepareStatement(sqlPromo)) {
-                    psPromo.setString(1, "%" + promoSeleccionada.replace("%", "").trim() + "%");
+                    psPromo.setString(1, textoPromo);
                     try (ResultSet rsPromo = psPromo.executeQuery()) {
                         if (rsPromo.next()) {
                             idPromocion = rsPromo.getString("idPromocion");
+                            porcentaje = rsPromo.getDouble("porcentaje"); // Leemos el numérico 10.00
                         }
                     }
                 }
+            } catch (SQLException e) {
+                System.out.println("Error buscando promo: " + e.getMessage());
+            }
+        }
+
+        // C) Aplicar Fórmula: El descuento se aplica al SUBTOTAL, no a la MORA.
+        if (porcentaje > 0) {
+            dbDescuento = dbSubtotal * (porcentaje / 100.0);
+        }
+
+        // Redondeos a 2 decimales para evitar 10.999999999
+        dbDescuento = Math.round(dbDescuento * 100.0) / 100.0;
+
+        // D) TOTAL FINAL = (Subtotal - Descuento) + Mora
+        dbTotalFinal = (dbSubtotal - dbDescuento) + dbMora;
+        dbTotalFinal = Math.round(dbTotalFinal * 100.0) / 100.0;
+
+        // --------------------------------------------------------------------------------
+        try {
+            conexion.setAutoCommit(false);
+
+            // Datos Generales
+            String idAlquiler = txtIdAlquiler.getText().trim();
+            String idTurista = txtIdTurista.getText().trim();
+            String idUsuario = txtIdVendedor.getText().trim();
+            java.sql.Date fechaInicio = new java.sql.Date(jDateChooserFecha.getDate().getTime());
+            String horaInicio = txtHora.getText().trim();
+            String horaFinal = txtHoraFin.getText().trim();
+            int duracion = 0;
+            try {
+                duracion = Integer.parseInt(txtDuracion.getText());
+            } catch (Exception e) {
             }
 
-            // 3️⃣ MODO NUEVO
+            // ============================
+            // 5️⃣ MODO NUEVO (INSERT)
+            // ============================
             if (modo.equals("nuevo")) {
-                try (CallableStatement cs = conexion.prepareCall("{call registrarAlquiler(?,?,?,?,?,?,?,?,?)}")) {
+                // Nota: Se han agregado 2 interrogantes al final para subtotal y montoDescuento
+                // Total parámetros: 11
+                try (CallableStatement cs = conexion.prepareCall("{call registrarAlquiler(?,?,?,?,?,?,?,?,?,?,?)}")) {
                     cs.setString(1, idTurista);
                     cs.setDate(2, fechaInicio);
                     cs.setString(3, horaInicio);
                     cs.setInt(4, duracion);
-                    cs.setBigDecimal(5, BigDecimal.valueOf(totalBase));
+                    cs.setBigDecimal(5, BigDecimal.valueOf(dbTotalFinal)); // TOTAL FINAL CALCULADO
                     cs.setString(6, estado);
                     cs.setString(7, idPromocion);
                     cs.setString(8, idUsuario);
                     cs.setString(9, horaFinal);
+
+                    // NUEVOS CAMPOS FINANCIEROS
+                    cs.setBigDecimal(10, BigDecimal.valueOf(dbSubtotal));
+                    cs.setBigDecimal(11, BigDecimal.valueOf(dbDescuento));
+
                     cs.execute();
                 }
 
-                // Recuperar ID generado
+                // Recuperar ID generado para guardar detalles
                 try (PreparedStatement psUltimo = conexion.prepareStatement(
                         "SELECT TOP 1 idAlquiler FROM Alquiler ORDER BY idAlquiler DESC"); ResultSet rs = psUltimo.executeQuery()) {
                     if (rs.next()) {
@@ -1294,7 +1360,9 @@ public class PanelAlquiler extends javax.swing.JPanel {
                 JOptionPane.showMessageDialog(this, "✅ Alquiler registrado correctamente.");
                 cargarRecursos();
 
-                // 4️⃣ MODO EDICIÓN
+                // ============================
+                // 6️⃣ MODO EDICIÓN (UPDATE)
+                // ============================
             } else if (modo.equals("edicion")) {
                 eliminarDetallesQuitados(idAlquiler, (DefaultTableModel) tblDetalles.getModel());
                 guardarSoloNuevosDetalles(idAlquiler);
@@ -1304,7 +1372,9 @@ public class PanelAlquiler extends javax.swing.JPanel {
                 SET idTurista=?, fechaInicio=?, horaInicio=?, Duracion=?, 
                     total=?, estado=?, idPromocion=?, idUsuario=?, horaFinal=?,
                     horaFinalReal = CASE WHEN ? = 'FINALIZADO' THEN CAST(GETDATE() AS TIME) ELSE horaFinalReal END,
-                    mora = ? 
+                    mora = ?,
+                    subtotal = ?,
+                    montoDescuento = ?
                 WHERE idAlquiler=?
             """;
 
@@ -1313,24 +1383,34 @@ public class PanelAlquiler extends javax.swing.JPanel {
                     ps.setDate(2, fechaInicio);
                     ps.setString(3, horaInicio);
                     ps.setInt(4, duracion);
-                    ps.setDouble(5, estado.equalsIgnoreCase("FINALIZADO") ? totalGranTotal : totalBase);
+
+                    // Si está finalizado usamos el cálculo total con moras, sino el subtotal con descuento
+                    // (Aunque dbTotalFinal ya incluye la lógica correcta para ambos casos)
+                    ps.setDouble(5, dbTotalFinal);
+
                     ps.setString(6, estado);
                     ps.setString(7, idPromocion);
                     ps.setString(8, idUsuario);
                     ps.setString(9, horaFinal);
-                    ps.setString(10, estado);
-                    ps.setDouble(11, totalMoras);
-                    ps.setString(12, idAlquiler);
+                    ps.setString(10, estado); // Para el CASE del horaFinalReal
+                    ps.setDouble(11, dbMora);
+
+                    // NUEVOS CAMPOS
+                    ps.setBigDecimal(12, BigDecimal.valueOf(dbSubtotal));
+                    ps.setBigDecimal(13, BigDecimal.valueOf(dbDescuento));
+
+                    ps.setString(14, idAlquiler);
                     ps.executeUpdate();
                 }
 
                 if (estado.equalsIgnoreCase("FINALIZADO")) {
                     JOptionPane.showMessageDialog(this,
                             "✅ Alquiler FINALIZADO.\n\n"
-                            + "Total Alquiler: S/ " + String.format("%.2f", totalBase) + "\n"
-                            + "Total Moras:    S/ " + String.format("%.2f", totalMoras) + "\n"
+                            + "Subtotal:    S/ " + String.format("%.2f", dbSubtotal) + "\n"
+                            + "Descuento: - S/ " + String.format("%.2f", dbDescuento) + "\n"
+                            + "Mora:      + S/ " + String.format("%.2f", dbMora) + "\n"
                             + "--------------------------\n"
-                            + "A PAGAR:        S/ " + String.format("%.2f", totalGranTotal));
+                            + "TOTAL PAGADO: S/ " + String.format("%.2f", dbTotalFinal));
                 } else {
                     JOptionPane.showMessageDialog(this, "✅ Alquiler actualizado correctamente.");
                 }
@@ -1348,7 +1428,7 @@ public class PanelAlquiler extends javax.swing.JPanel {
                 conexion.rollback();
             } catch (SQLException ex) {
             }
-            e.printStackTrace(); // Imprime error en consola para depurar
+            e.printStackTrace();
             JOptionPane.showMessageDialog(this, "❌ Error al grabar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         } finally {
             try {
@@ -1459,6 +1539,10 @@ public class PanelAlquiler extends javax.swing.JPanel {
     private void txtDuracionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtDuracionActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_txtDuracionActionPerformed
+
+    private void jComboBoxPromosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBoxPromosActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jComboBoxPromosActionPerformed
 
     private double calcularMoraIndividual(int horasPactadas, LocalTime horaInicio, double tarifaHora) {
         // 1. Definir fechas y horas (Usamos hoy como referencia según tu lógica actual)

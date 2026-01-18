@@ -513,7 +513,7 @@ public class PanelPromociones extends javax.swing.JPanel {
             return;
         }
 
-        // 1. Validaciones
+        // 1. Validaciones Generales (Campos Vacíos)
         if (txtDescripcion.getText().trim().isEmpty()
                 || txtTipo.getText().trim().isEmpty()
                 || txtCondicion.getText().trim().isEmpty()) {
@@ -521,6 +521,29 @@ public class PanelPromociones extends javax.swing.JPanel {
             return;
         }
 
+        // ---------------------------------------------------------
+        // 1.1 VALIDACIÓN DE FORMATO PORCENTAJE (NUEVO CÓDIGO)
+        // ---------------------------------------------------------
+        String desc = txtDescripcion.getText().trim();
+
+        // Regex: ^\d+(\.\d+)?%$
+        // Explico: Empieza con números, opcionalmente tiene un punto y más números, y termina obligatoriamente en %.
+        if (!desc.matches("^\\d+(\\.\\d+)?%$")) {
+            JOptionPane.showMessageDialog(this,
+                    "El campo Descripción debe ser un porcentaje válido (ej: 10% o 12.5%).\nNo incluya texto extra.",
+                    "Formato Incorrecto",
+                    JOptionPane.WARNING_MESSAGE);
+            return; // <--- Detenemos aquí si no cumple el formato
+        }
+        // Opcional: Validar que esté entre 0 y 100
+        double valorNumerico = Double.parseDouble(desc.replace("%", ""));
+        if (valorNumerico < 0 || valorNumerico > 100) {
+            JOptionPane.showMessageDialog(this, "El porcentaje debe estar entre 0% y 100%.");
+            return;
+        }
+        // ---------------------------------------------------------
+
+        // Validación de Horas (tu código original)
         int condicionHoras = 0;
         try {
             condicionHoras = Integer.parseInt(txtCondicion.getText().trim());
@@ -533,7 +556,7 @@ public class PanelPromociones extends javax.swing.JPanel {
             return;
         }
 
-        // 2. Guardado
+        // 2. Guardado (tu código original)
         try {
             if (modo.equals("nuevo")) {
                 CallableStatement cs = conexion.prepareCall("{call registrarPromocion(?, ?, ?)}");

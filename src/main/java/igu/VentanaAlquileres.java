@@ -104,7 +104,7 @@ public class VentanaAlquileres extends javax.swing.JFrame {
                     boolean hasFocus, int row, int column) {
 
                 java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                
+
                 // Centrar texto
                 this.setHorizontalAlignment(SwingConstants.CENTER);
 
@@ -125,28 +125,17 @@ public class VentanaAlquileres extends javax.swing.JFrame {
         jScrollPane1.getViewport().setBackground(Color.WHITE);
         jScrollPane1.setBorder(BorderFactory.createEmptyBorder()); // Sin borde feo
     }
-   
+
     // --- MÉTODO 3: DATOS Y COLUMNAS ---
     private void cargarAlquileres() {
-        // 1. Definir columnas (14 en total)
+        // 1. Definir columnas (15 en total para incluir lo financiero)
         String[] titulos = {
-            "ID Alq.",      // 0
-            "ID Turista",   // 1
-            "DNI",          // 2
-            "Nombre Turista",// 3
-            "F. Inicio",    // 4
-            "H. Inicio",    // 5
-            "Dur.",         // 6
-            "Total",        // 7
-            "Estado",       // 8
-            "Promo",        // 9
-            "User",         // 10
-            "H. Fin Plan",  // 11
-            "H. Fin Real",  // 12
-            "Mora"          // 13
+            "ID", "Cliente", "DNI", "Fecha", "Hora", "Dur.", "Estado",
+            "Subtotal", "Dscto.", "Mora", "TOTAL", // <--- BLOQUE NUEVO
+            "Promo", "User", "H. Fin", "Devolución"
         };
 
-        // 2. Modelo que bloquea edición
+        // Modelo no editable
         modeloTabla = new DefaultTableModel(null, titulos) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -154,58 +143,66 @@ public class VentanaAlquileres extends javax.swing.JFrame {
             }
         };
         jTable1.setModel(modeloTabla);
-        
-        // Scroll horizontal necesario para tantas columnas
-        jTable1.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF); 
 
-        // 3. Ajustar Anchos de Columnas
-        int[] anchos = {60, 60, 80, 200, 80, 70, 50, 70, 80, 70, 60, 80, 80, 70};
+        // Importante para que quepan tantas columnas
+        jTable1.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF);
+
+        // 2. Anchos de columnas
+        int[] anchos = {60, 200, 80, 80, 70, 50, 90, 80, 70, 70, 90, 60, 70, 70, 80};
         for (int i = 0; i < jTable1.getColumnCount(); i++) {
             if (i < anchos.length) {
                 jTable1.getColumnModel().getColumn(i).setPreferredWidth(anchos[i]);
             }
         }
 
-        // 4. SQL: Incluye horaFinalReal y Mora
+        // 3. SQL ACTUALIZADO (Con ISNULL para compatibilidad con datos viejos)
         modeloTabla.setRowCount(0);
         String sql = """
-            SELECT 
-                A.idAlquiler, 
-                A.idTurista, 
-                ISNULL(T.DNI, '—') AS DNI,
-                ISNULL(CONCAT(T.nombre, ' ', T.apellidos), '—') AS NombreCompleto,
-                A.fechaInicio, 
-                A.horaInicio, 
-                A.Duracion, 
-                A.total, 
-                A.estado, 
-                ISNULL(A.idPromocion, '—') AS idPromocion,
-                A.idUsuario, 
-                ISNULL(CONVERT(VARCHAR(8), A.horaFinal, 108), '—') AS horaFinal,
-                ISNULL(CONVERT(VARCHAR(8), A.horaFinalReal, 108), '—') AS horaFinalReal,
-                ISNULL(A.mora, 0.00) AS mora
-            FROM Alquiler A
-            LEFT JOIN Turista T ON A.idTurista = T.idTurista
-            ORDER BY A.idAlquiler DESC
-        """;
+        SELECT 
+            A.idAlquiler, 
+            ISNULL(CONCAT(T.nombre, ' ', T.apellidos), '—') AS NombreCompleto,
+            ISNULL(T.DNI, '—') AS DNI,
+            A.fechaInicio, 
+            CONVERT(VARCHAR(5), A.horaInicio, 108) as horaInicio,
+            A.Duracion,
+            A.estado,
+            -- Financiero: Si subtotal es NULL (dato viejo), lo calculamos: Total - Mora
+            ISNULL(A.subtotal, A.total - A.mora) as subtotal,
+            ISNULL(A.montoDescuento, 0.00) as descuento,
+            ISNULL(A.mora, 0.00) as mora,
+            A.total,
+            -- Otros
+            ISNULL(A.idPromocion, '-') AS idPromocion,
+            A.idUsuario,
+            ISNULL(CONVERT(VARCHAR(5), A.horaFinal, 108), '-') AS horaFinal,
+            ISNULL(CONVERT(VARCHAR(5), A.horaFinalReal, 108), '-') AS horaFinalReal
+        FROM Alquiler A
+        LEFT JOIN Turista T ON A.idTurista = T.idTurista
+        ORDER BY A.fechaInicio DESC, A.horaInicio DESC
+    """;
 
         try (PreparedStatement ps = conexion.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                Object[] fila = new Object[14];
+                Object[] fila = new Object[15];
                 fila[0] = rs.getString("idAlquiler");
-                fila[1] = rs.getString("idTurista");
+                fila[1] = rs.getString("NombreCompleto");
                 fila[2] = rs.getString("DNI");
-                fila[3] = rs.getString("NombreCompleto");
-                fila[4] = rs.getDate("fechaInicio");
-                fila[5] = rs.getString("horaInicio");
-                fila[6] = rs.getInt("Duracion");
-                fila[7] = rs.getBigDecimal("total");
-                fila[8] = rs.getString("estado");
-                fila[9] = rs.getString("idPromocion");
-                fila[10] = rs.getString("idUsuario");
-                fila[11] = rs.getString("horaFinal");
-                fila[12] = rs.getString("horaFinalReal");
-                fila[13] = rs.getBigDecimal("mora");
+                fila[3] = rs.getDate("fechaInicio");
+                fila[4] = rs.getString("horaInicio");
+                fila[5] = rs.getInt("Duracion") + " h";
+                fila[6] = rs.getString("estado");
+
+                // Bloque Financiero
+                fila[7] = String.format("%.2f", rs.getDouble("subtotal"));
+                fila[8] = String.format("%.2f", rs.getDouble("descuento"));
+                fila[9] = String.format("%.2f", rs.getDouble("mora"));
+                fila[10] = String.format("%.2f", rs.getDouble("total"));
+
+                fila[11] = rs.getString("idPromocion");
+                fila[12] = rs.getString("idUsuario");
+                fila[13] = rs.getString("horaFinal");
+                fila[14] = rs.getString("horaFinalReal");
+
                 modeloTabla.addRow(fila);
             }
         } catch (SQLException e) {
